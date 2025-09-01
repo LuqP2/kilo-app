@@ -1,0 +1,16 @@
+{
+  "name": "Kilo",
+  "short_name": "Kilo",
+  "description": "Tire uma foto da sua geladeira ou despensa, e nossa IA irá catalogar seus ingredientes e sugerir deliciosas receitas para você.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#f97316",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
