@@ -2,11 +2,19 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
 import { checkAndIncrementUsage } from './usageService';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+// --- INÍCIO DA CORREÇÃO ---
+
+// Pega a chave da API Gemini do ambiente Vite, que é o correto para o frontend.
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Verifica se a chave foi encontrada. Se não, lança um erro claro.
+if (!geminiApiKey) {
+  throw new Error("VITE_GEMINI_API_KEY environment variable not set");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicializa a IA usando a chave correta.
+const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
 
 // The recipe object returned from the API, without the client-side ID
 type ApiRecipe = Omit<Recipe, 'id'>;
