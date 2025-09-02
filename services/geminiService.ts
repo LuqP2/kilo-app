@@ -1,24 +1,31 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES, EffortFilter } from '../types';
+import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
 import { checkAndIncrementUsage } from './usageService';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+// --- INÍCIO DA CORREÇÃO ---
+
+// Pega a chave da API Gemini do ambiente Vite, que é o correto para o frontend.
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Verifica se a chave foi encontrada. Se não, lança um erro claro.
+if (!geminiApiKey) {
+  throw new Error("VITE_GEMINI_API_KEY environment variable not set");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Inicializa a IA usando a chave correta.
+const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+
 
 // The recipe object returned from the API, without the client-side ID
 type ApiRecipe = Omit<Recipe, 'id'>;
 
 // Cache implementation to reduce API calls for identical requests
 const recipeCache = new Map<string, ApiRecipe[]>();
-const generateCacheKey = (ingredients: string[], settings: UserSettings, mealTypes: MealType[], effortFilters: EffortFilter[]): string => {
+const generateCacheKey = (ingredients: string[], settings: UserSettings, mealTypes: MealType[]): string => {
   const sortedIngredients = [...ingredients].sort().join(',');
   const sortedMealTypes = [...mealTypes].sort().join(',');
-  const sortedEffortFilters = [...effortFilters].sort().join(',');
   const settingsString = JSON.stringify(settings);
-  return `${sortedIngredients}|${sortedMealTypes}|${sortedEffortFilters}|${settingsString}`;
+  return `${sortedIngredients}|${sortedMealTypes}|${settingsString}`;
 };
 
 const concisenessPrompt = "Seja o mais conciso e breve possível em todas as respostas. Use frases curtas. Evite descrições longas e floreios. O objetivo é a máxima eficiência de tokens.";
@@ -184,15 +191,6 @@ const baseRecipeSchemaProperties = {
     type: Type.NUMBER,
     description: "Uma estimativa do número de calorias por porção. Ex: 450"
   },
-  totalTime: {
-    type: Type.STRING,
-    description: "O tempo total estimado para a receita (preparo + cozimento), em texto. Ex: '25 minutos'."
-  },
-  tags: {
-    type: Type.ARRAY,
-    items: { type: Type.STRING },
-    description: "Uma lista de tags de 'Custo de Esforço' que se aplicam a esta receita. Valores possíveis: 'Rápido (-30 min)', 'Uma Panela Só', 'Sem Forno'."
-  },
   commonQuestions: {
     type: Type.ARRAY,
     items: {
@@ -217,7 +215,7 @@ const standardRecipeSchema = {
         description: "Uma lista estruturada dos ingredientes necessários para a receita, cada um com nome, quantidade e unidade.",
       },
     },
-    required: ["recipeName", "description", "ingredientsNeeded", "howToPrepare", "servings", "calories", "totalTime"],
+    required: ["recipeName", "description", "ingredientsNeeded", "howToPrepare", "servings", "calories"],
 };
 
 const marketRecipeSchema = {
@@ -235,7 +233,7 @@ const marketRecipeSchema = {
             description: "Lista de compras com os ingredientes que faltam para a receita.",
         },
     },
-    required: ["recipeName", "description", "ingredientsYouHave", "ingredientsToBuy", "howToPrepare", "servings", "calories", "totalTime"],
+    required: ["recipeName", "description", "ingredientsYouHave", "ingredientsToBuy", "howToPrepare", "servings", "calories"],
 };
 
 export async function getRecipeFromImage(imageFile: File, settings: UserSettings): Promise<ApiRecipe | null> {
@@ -243,7 +241,7 @@ export async function getRecipeFromImage(imageFile: File, settings: UserSettings
   const imagePart = await fileToGenerativePart(imageFile);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
 
-  const prompt = `Analise esta imagem de um prato pronto. Por favor, identifique o prato e forneça uma receita completa e detalhada para prepará-lo, em português do Brasil. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} As instruções devem ser claras e completas para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. ${personalizationPrompt} A resposta DEVE ser um único objeto JSON que segue estritamente o schema fornecido. A receita deve incluir 'recipeName', 'description', uma lista de 'ingredientsNeeded' (cada um com 'name', 'quantity', 'unit'), 'howToPrepare' (como um array de strings de passos claros), 'servings', uma estimativa de 'calories' por porção, 'totalTime', 'tags' (se aplicável), 'commonQuestions' (com apenas 1 pergunta) e um array opcional 'techniques' com termos culinários importantes. Se você não conseguir identificar um prato com confiança a partir da imagem, retorne null.`;
+  const prompt = `Analise esta imagem de um prato pronto. Por favor, identifique o prato e forneça uma receita completa e detalhada para prepará-lo, em português do Brasil. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} As instruções devem ser claras e completas para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. ${personalizationPrompt} A resposta DEVE ser um único objeto JSON que segue estritamente o schema fornecido. A receita deve incluir 'recipeName', 'description', uma lista de 'ingredientsNeeded' (cada um com 'name', 'quantity', 'unit'), 'howToPrepare' (como um array de strings de passos claros), 'servings', uma estimativa de 'calories' por porção, 'commonQuestions' (com apenas 1 pergunta) e um array opcional 'techniques' com termos culinários importantes. Se você não conseguir identificar um prato com confiança a partir da imagem, retorne null.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -297,8 +295,6 @@ export async function suggestLeftoverRecipes(imageFile: File, settings: UserSett
     - 'howToPrepare': O passo a passo da nova receita, que deve incluir como incorporar as sobras.
     - 'servings': O número de porções, que deve ser 2 por padrão.
     - 'calories': Uma estimativa de calorias por porção.
-    - 'totalTime': O tempo total estimado.
-    - 'tags': Tags de esforço, se aplicável.
     - 'commonQuestions': Uma lista de 1 pergunta comum que um cozinheiro poderia ter sobre esta nova receita.
     - 'techniques': Um array opcional de até 5 técnicas culinárias importantes mencionadas na nova receita.
 
@@ -393,29 +389,11 @@ const buildMealTypePrompt = (mealTypes: MealType[]): string => {
     return prompt;
 }
 
-const buildEffortFilterPrompt = (effortFilters: EffortFilter[]): string => {
-    if (effortFilters.length === 0) {
-        return '';
-    }
-    let prompt = ' A receita DEVE atender aos seguintes critérios de "Custo de Esforço":';
-    if (effortFilters.includes('Rápido (-30 min)')) {
-        prompt += ' Tempo total (preparo + cozimento) deve ser de 30 minutos ou menos.';
-    }
-    if (effortFilters.includes('Uma Panela Só')) {
-        prompt += ' Deve ser uma receita de "uma panela só" (one-pot recipe), minimizando a louça.';
-    }
-    if (effortFilters.includes('Sem Forno')) {
-        prompt += ' Não deve requerer o uso de um forno convencional.';
-    }
-    prompt += ' Adicione as tags de esforço correspondentes no campo "tags" da receita.';
-    return prompt;
-}
-
-export async function suggestRecipes(ingredients: string[], existingRecipes: Recipe[] = [], settings: UserSettings, mealTypes: MealType[], effortFilters: EffortFilter[]): Promise<ApiRecipe[]> {
+export async function suggestRecipes(ingredients: string[], existingRecipes: Recipe[] = [], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
   checkAndIncrementUsage();
   // Only cache initial requests (no existing recipes)
   if (existingRecipes.length === 0) {
-    const cacheKey = generateCacheKey(ingredients, settings, mealTypes, effortFilters);
+    const cacheKey = generateCacheKey(ingredients, settings, mealTypes);
     if (recipeCache.has(cacheKey)) {
       console.log('Serving from cache');
       return recipeCache.get(cacheKey)!;
@@ -425,7 +403,6 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
   validateIngredients(ingredients);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
-  const effortFilterPrompt = buildEffortFilterPrompt(effortFilters);
   
   let pantryPrompt: string;
   if (settings.pantryStaples && settings.pantryStaples.length > 0) {
@@ -438,11 +415,11 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
   const ingredientsList = `Ingredientes disponíveis: ${ingredients.join(', ')}.`;
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
 
-  let prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${effortFilterPrompt} ${ingredientsList} Com base nisso, sugira 5 receitas simples e deliciosas em português do Brasil, que por padrão sirvam 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir estritamente o schema JSON fornecido.`;
+  let prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 receitas simples e deliciosas em português do Brasil, que por padrão sirvam 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
 
   if (existingRecipes.length > 0) {
     const existingRecipeNames = existingRecipes.map(r => r.recipeName).join(', ');
-    prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${effortFilterPrompt} ${ingredientsList} Com base nisso, sugira 5 NOVAS receitas simples e deliciosas, em português do Brasil, DIFERENTES das seguintes: ${existingRecipeNames}. As receitas devem, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir estritamente o schema JSON fornecido.`;
+    prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 NOVAS receitas simples e deliciosas, em português do Brasil, DIFERENTES das seguintes: ${existingRecipeNames}. As receitas devem, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
   }
 
   const response = await ai.models.generateContent({
@@ -463,7 +440,7 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
     const recipes = JSON.parse(jsonString) as ApiRecipe[];
     
     if (existingRecipes.length === 0) {
-        const cacheKey = generateCacheKey(ingredients, settings, mealTypes, effortFilters);
+        const cacheKey = generateCacheKey(ingredients, settings, mealTypes);
         recipeCache.set(cacheKey, recipes);
         console.log('Result cached');
     }
@@ -476,12 +453,11 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
 }
 
 
-export async function suggestSingleRecipe(ingredients: string[], recipesToExclude: Recipe[], settings: UserSettings, mealTypes: MealType[], effortFilters: EffortFilter[]): Promise<ApiRecipe | null> {
+export async function suggestSingleRecipe(ingredients: string[], recipesToExclude: Recipe[], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe | null> {
     checkAndIncrementUsage();
     validateIngredients(ingredients);
     const personalizationPrompt = buildPersonalizationPrompt(settings);
     const mealTypePrompt = buildMealTypePrompt(mealTypes);
-    const effortFilterPrompt = buildEffortFilterPrompt(effortFilters);
     const excludedNames = recipesToExclude.map(r => r.recipeName).join(', ');
 
     let pantryPrompt: string;
@@ -495,7 +471,7 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
     const ingredientsList = `Ingredientes disponíveis: ${ingredients.join(', ')}.`;
     const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
 
-    const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${effortFilterPrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo estritamente o schema JSON fornecido.`;
+    const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -517,14 +493,13 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
     }
 }
 
-export async function suggestMarketModeRecipes(mainIngredients: string[], settings: UserSettings, mealTypes: MealType[], effortFilters: EffortFilter[]): Promise<ApiRecipe[]> {
+export async function suggestMarketModeRecipes(mainIngredients: string[], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
   checkAndIncrementUsage();
   validateIngredients(mainIngredients);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
-  const effortFilterPrompt = buildEffortFilterPrompt(effortFilters);
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
-  const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${effortFilterPrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo estritamente o schema JSON fornecido.`;
+  const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo o schema. Cada receita também deve incluir um array 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',

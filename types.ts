@@ -9,9 +9,6 @@ export interface Technique {
   description: string;
 }
 
-export type EffortFilter = 'Rápido (-30 min)' | 'Uma Panela Só' | 'Sem Forno';
-export const EFFORT_FILTERS: EffortFilter[] = ['Rápido (-30 min)', 'Uma Panela Só', 'Sem Forno'];
-
 export interface Recipe {
   id: string;
   recipeName: string;
@@ -19,8 +16,6 @@ export interface Recipe {
   howToPrepare: string[];
   servings?: number;
   calories?: number;
-  totalTime?: string;
-  tags?: string[];
   commonQuestions?: string[];
   techniques?: Technique[];
   // For "Use what I have" mode
