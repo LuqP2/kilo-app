@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT } from './services/usageService';
-
+import { AuthProvider } from './AuthContext';
 
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
@@ -674,55 +674,57 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      <Header 
-        onShowSaved={() => setIsSavedModalOpen(true)} 
-        savedRecipesCount={savedRecipes.length}
-        onShowSettings={() => handleShowSettings()}
-        remainingGenerations={remainingGenerations}
-        userPlan={userSettings.plan}
-      />
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
-            {renderContent()}
-        </div>
-      </main>
-      <Footer />
-
-      {selectedRecipe && (
-        <RecipeModal 
-            recipe={selectedRecipe} 
-            onClose={() => setSelectedRecipe(null)} 
-            isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
-            onToggleSave={handleToggleSaveRecipe}
-            onUpdateRecipe={handleUpdateSavedRecipe}
+    <AuthProvider>
+      <div className="min-h-screen flex flex-col font-sans">
+        <Header 
+          onShowSaved={() => setIsSavedModalOpen(true)} 
+          savedRecipesCount={savedRecipes.length}
+          onShowSettings={() => handleShowSettings()}
+          remainingGenerations={remainingGenerations}
+          userPlan={userSettings.plan}
         />
-      )}
-      
-      <SavedRecipesModal
-        isOpen={isSavedModalOpen}
-        onClose={() => setIsSavedModalOpen(false)}
-        savedRecipes={savedRecipes}
-        onToggleSave={handleToggleSaveRecipe}
-        onViewRecipe={(recipe) => {
-          setIsSavedModalOpen(false);
-          setSelectedRecipe(recipe);
-        }}
-      />
+        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
+              {renderContent()}
+          </div>
+        </main>
+        <Footer />
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        settings={userSettings}
-        onSave={setUserSettings}
-        initialTab={initialSettingsTab}
-      />
+        {selectedRecipe && (
+          <RecipeModal 
+              recipe={selectedRecipe} 
+              onClose={() => setSelectedRecipe(null)} 
+              isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
+              onToggleSave={handleToggleSaveRecipe}
+              onUpdateRecipe={handleUpdateSavedRecipe}
+          />
+        )}
+        
+        <SavedRecipesModal
+          isOpen={isSavedModalOpen}
+          onClose={() => setIsSavedModalOpen(false)}
+          savedRecipes={savedRecipes}
+          onToggleSave={handleToggleSaveRecipe}
+          onViewRecipe={(recipe) => {
+            setIsSavedModalOpen(false);
+            setSelectedRecipe(recipe);
+          }}
+        />
 
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
-    </div>
+        <SettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          settings={userSettings}
+          onSave={setUserSettings}
+          initialTab={initialSettingsTab}
+        />
+
+        <UpgradeModal 
+          isOpen={isUpgradeModalOpen}
+          onClose={() => setIsUpgradeModalOpen(false)}
+        />
+      </div>
+    </AuthProvider>
   );
 };
 

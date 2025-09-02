@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, Technique } from '../types';
 import { adjustRecipeServings, getAnswerForRecipeQuestion, getTechniqueExplanation } from '../services/geminiService';
+import { useAuth } from '../AuthContext';
+import { db } from '../firebaseConfig';
+import { setDoc, deleteDoc, doc } from 'firebase/firestore';
+import { signInWithGoogle } from '../services/authService';
 
 interface RecipeModalProps {
   recipe: Recipe;
@@ -55,6 +59,8 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
   const [activeTechnique, setActiveTechnique] = useState<Technique | null>(null);
   const [techniqueSteps, setTechniqueSteps] = useState<string[]>([]);
   const [isLoadingTechnique, setIsLoadingTechnique] = useState(false);
+
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
@@ -407,6 +413,24 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     );
   }
 
+  const handleToggleSaveFirestore = async (recipe: Recipe) => {
+    if (!currentUser) {
+      await signInWithGoogle();
+      return;
+    }
+    const recipeRef = doc(db, 'users', currentUser.uid, 'savedRecipes', recipe.id);
+    try {
+      if (!isSaved) {
+        await setDoc(recipeRef, recipe);
+      } else {
+        await deleteDoc(recipeRef);
+      }
+      onToggleSave(recipe); // Mantém sincronização local
+    } catch (e) {
+      console.error("Erro ao salvar/remover receita no Firestore", e);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-0 sm:p-4 transition-opacity" onClick={onClose} aria-modal="true" role="dialog">
         <audio ref={audioRef} src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT19PAAAAAAAC//8=/" />
@@ -421,10 +445,14 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                         )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                        <button onClick={() => onToggleSave(recipe)} className="text-slate-400 hover:text-orange-500" aria-label={isSaved ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
-                           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
-                              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" className={isSaved ? "text-orange-500" : ""} />
-                           </svg>
+                        <button
+                          onClick={() => handleToggleSaveFirestore(recipe)}
+                          className="text-slate-400 hover:text-orange-500"
+                          aria-label={isSaved ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
+                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" className={isSaved ? "text-orange-500" : ""} />
+                          </svg>
                         </button>
                         {!isEditing && (
                             <button onClick={() => setIsEditing(true)} className="text-slate-400 hover:text-slate-600" aria-label="Editar receita">

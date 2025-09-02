@@ -9,10 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/genai": "^1.15.0",
+    "firebase": "^12.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-dropzone": "^14.3.8",
-    "@google/genai": "^1.15.0"
+    "react-dropzone": "^14.3.8"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
