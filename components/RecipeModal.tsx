@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Recipe, Ingredient, Technique } from '../types';
 import { adjustRecipeServings, getAnswerForRecipeQuestion, getTechniqueExplanation } from '../services/geminiService';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebaseConfig';
+import { db } from '../firebaseConfig.ts';
 import { setDoc, deleteDoc, doc } from 'firebase/firestore';
 import { signInWithGoogle } from '../services/authService';
 
