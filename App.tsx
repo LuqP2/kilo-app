@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT } from './services/usageService';
-import { AuthProvider } from './AuthContext';
+import { AuthProvider, useAuth } from './AuthContext';
 
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
@@ -49,6 +49,7 @@ const initialSettings: UserSettings = {
 };
 
 const App: React.FC = () => {
+  const { userProfile, updateUserProfile } = useAuth();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -85,6 +86,10 @@ const App: React.FC = () => {
 
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [remainingGenerations, setRemainingGenerations] = useState(FREE_PLAN_LIMIT);
+
+  // Adicione os estados locais para appliances e utensils
+  const [appliances, setAppliances] = useState<string[]>([]);
+  const [utensils, setUtensils] = useState<string[]>([]);
 
   const updateUsageCount = useCallback(() => {
     const remaining = getRemainingGenerations();
@@ -149,6 +154,14 @@ const App: React.FC = () => {
       };
     }
   }, [imageFiles]);
+
+  // Sincronize os estados locais de appliances e utensils com userProfile.myKitchen quando userProfile mudar
+  useEffect(() => {
+    if (userProfile && userProfile.myKitchen) {
+      setAppliances(userProfile.myKitchen.appliances || []);
+      setUtensils(userProfile.myKitchen.utensils || []);
+    }
+  }, [userProfile]);
 
   const handleToggleSaveRecipe = useCallback(async (recipe: Recipe) => {
     const isSaved = savedRecipes.some(r => r.id === recipe.id);
