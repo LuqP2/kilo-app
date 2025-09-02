@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Recipe, ResultsMode, WeeklyPlan, UserSettings, MealType, MEAL_TYPES, AppMode } from '../types';
+import { Recipe, ResultsMode, WeeklyPlan, UserSettings, MealType, MEAL_TYPES, AppMode, EffortFilter } from '../types';
 import WeeklyPlanView from './WeeklyPlanView';
 import FlavorProfileBanner from './FlavorProfileBanner';
 import MealTypeSelector from './MealTypeSelector';
@@ -43,6 +43,8 @@ interface ResultsViewProps {
   
   selectedMealTypes: MealType[];
   onSelectedMealTypesChange: (mealTypes: MealType[]) => void;
+  effortFilters: EffortFilter[];
+  onEffortFiltersChange: (filters: EffortFilter[]) => void;
   error: string | null;
   hasGenerationsLeft: boolean;
 }
@@ -146,6 +148,8 @@ const ResultsView: React.FC<ResultsViewProps> = ({
   onDismissFlavorProfilePrompt,
   selectedMealTypes,
   onSelectedMealTypesChange,
+  effortFilters,
+  onEffortFiltersChange,
   error,
   hasGenerationsLeft,
 }) => {
@@ -193,6 +197,16 @@ const ResultsView: React.FC<ResultsViewProps> = ({
     }
   };
   
+  const handleEffortFilterChange = (filter: EffortFilter) => {
+    const newFilters = effortFilters.includes(filter)
+      ? effortFilters.filter(f => f !== filter)
+      : [...effortFilters, filter];
+    onEffortFiltersChange(newFilters);
+    if(hasGenerationsLeft) {
+      onRegenerate(selectedIngredients);
+    }
+  };
+
   const handleAddIngredient = (e: React.FormEvent) => {
     e.preventDefault();
     if (newIngredient.trim()) {
@@ -282,14 +296,29 @@ const ResultsView: React.FC<ResultsViewProps> = ({
                               <p className="mt-1 text-slate-600 line-clamp-2 text-sm">{recipe.description}</p>
                           </div>
                         </div>
-                        {recipe.calories && (
+                        {(recipe.calories || recipe.totalTime) && (
                             <div className="mt-3 flex items-center gap-4 text-sm text-slate-600 pt-3 border-t border-slate-100">
-                                <div className="flex items-center gap-1.5">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.934l-.546 1.073a1 1 0 001.24 1.45l.546-1.073a.5.5 0 01.725-.192l.546 1.073a1 1 0 001.24-1.45l-.546-1.073a.5.5 0 01.385-.725l.243.485a1 1 0 001.24-1.45l-.243-.485a.5.5 0 01.614-.558 1 1 0 00.385-1.45c-.23-.345-.558-.614-.934-.822l-1.073-.546zM9 4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1zM3 10a1 1 0 011-1h.01a1 1 0 110 2H4a1 1 0 01-1-1zM7 16a1 1 0 011-1h.01a1 1 0 110 2H8a1 1 0 01-1-1zM12 10a1 1 0 011-1h.01a1 1 0 110 2H13a1 1 0 01-1-1zM9 14a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
-                                    </svg>
-                                    <span><strong className="font-semibold">{recipe.calories}</strong> kcal / porção</span>
-                                </div>
+                                {recipe.calories && (
+                                    <div className="flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.934l-.546 1.073a1 1 0 001.24 1.45l.546-1.073a.5.5 0 01.725-.192l.546 1.073a1 1 0 001.24-1.45l-.546-1.073a.5.5 0 01.385-.725l.243.485a1 1 0 001.24-1.45l-.243-.485a.5.5 0 01.614-.558 1 1 0 00.385-1.45c-.23-.345-.558-.614-.934-.822l-1.073-.546zM9 4a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1zM3 10a1 1 0 011-1h.01a1 1 0 110 2H4a1 1 0 01-1-1zM7 16a1 1 0 011-1h.01a1 1 0 110 2H8a1 1 0 01-1-1zM12 10a1 1 0 011-1h.01a1 1 0 110 2H13a1 1 0 01-1-1zM9 14a1 1 0 011-1h.01a1 1 0 110 2H10a1 1 0 01-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        <span><strong className="font-semibold">{recipe.calories}</strong> kcal / porção</span>
+                                    </div>
+                                )}
+                                {recipe.totalTime && (
+                                    <div className="flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
+                                        <span><strong className="font-semibold">{recipe.totalTime}</strong> min</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {recipe.tags && recipe.tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                                {recipe.tags.map(tag => (
+                                    <span key={tag} className="px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 rounded-full">{tag}</span>
+                                ))}
                             </div>
                         )}
                       </div>
@@ -428,6 +457,24 @@ const ResultsView: React.FC<ResultsViewProps> = ({
                     selectedMeals={selectedMealTypes}
                     onChange={handleMealFilterChange}
                   />
+                </div>
+              </div>
+              <div>
+                <h4 className="text-base font-medium text-slate-700">Custo de Esforço</h4>
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {(['Rápido (-30 min)', 'Uma Panela Só', 'Sem Forno'] as EffortFilter[]).map(filter => (
+                        <button
+                            key={filter}
+                            onClick={() => handleEffortFilterChange(filter)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-full border transition-colors ${
+                                effortFilters.includes(filter)
+                                ? 'bg-orange-100 border-orange-300 text-orange-800'
+                                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                            }`}
+                        >
+                            {filter}
+                        </button>
+                    ))}
                 </div>
               </div>
               <div>

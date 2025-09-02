@@ -1,0 +1,65 @@
+[33mcommit e10a862c570aa48d65245d357677d2409976d9bc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 22:07:19 2025 -0300
+
+    feat: Add effort filters and enhance recipe suggestion functionality
+
+[33mcommit 55f51c31937e526aafeb2ca1a81fc03dba2ae614[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 17:25:23 2025 -0300
+
+    fix: Add environment variable type definitions for Vite
+
+[33mcommit 2197a4caec9a1aac533c02a283577ed3b5205ab4[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 17:07:58 2025 -0300
+
+    deploy: Final verification of secrets
+
+[33mcommit 5c8f892b5455440134871fd21fdd3a55495a350f[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:58:25 2025 -0300
+
+    build: Add verification step for API key
+
+[33mcommit 0baa954ddf3c5703efd331efb53b801d712eab60[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:52:05 2025 -0300
+
+    fix: Brute-force injection of environment variables
+
+[33mcommit 756559dd0e1d49c76a92179e127b9c6d876cbbc3[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:49:04 2025 -0300
+
+    deploy: Finalize and correct production workflow
+
+[33mcommit b5f596eeb8df73a4eae5a91807e25fe4720141da[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:33:10 2025 -0300
+
+    fix: Explicitly create .env file during build process
+
+[33mcommit 8d1fffe6b99d1b11271555908fe59f3b4be96f36[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:25:05 2025 -0300
+
+    fix: Correct syntax in production deploy workflow
+
+[33mcommit e56230cc694e7d18e17fb1b3b772a427ea7f206e[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 16:02:50 2025 -0300
+
+    fix: Add package-lock.json to enable CI builds
+
+[33mcommit 7dafa10682dda152b27a7d853d45f2ccf96c0174[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 15:59:21 2025 -0300
+
+    chore: Reconfigure GitHub Actions for Firebase Hosting
+
+[33mcommit 52bc0149953ed2e57e4dbdd8cf905a9be51ce984[m
+Author: LuqP2 <kelipot.l@gmail.com>
+Date:   Mon Sep 1 15:52:38 2025 -0300
+
+    feat: Sincroniza versão 1.0 final e corrige o repositório

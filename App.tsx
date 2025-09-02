@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient } from './types';
+import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT } from './services/usageService';
 
@@ -32,6 +32,7 @@ const initialSettings: UserSettings = {
   isLactoseFree: false,
   isFitMode: false,
   allergies: '',
+  effortFilters: [],
   flavorProfile: {
     favoriteCuisines: [],
     spiceLevel: '',
@@ -80,6 +81,7 @@ const App: React.FC = () => {
   const [initialSettingsTab, setInitialSettingsTab] = useState<'preferences' | 'kitchen'>('preferences');
 
   const [selectedMealTypes, setSelectedMealTypes] = useState<MealType[]>(['Almoço', 'Jantar']);
+  const [effortFilters, setEffortFilters] = useState<EffortFilter[]>([]);
 
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [remainingGenerations, setRemainingGenerations] = useState(FREE_PLAN_LIMIT);
@@ -130,6 +132,12 @@ const App: React.FC = () => {
       console.error("Failed to save settings to localStorage", e);
     }
   }, [userSettings, updateUsageCount]);
+
+  useEffect(() => {
+    // When filters change, apply them to the main settings object
+    // This makes it easy to pass all personalization options to the API
+    setUserSettings(prev => ({...prev, effortFilters}));
+  }, [effortFilters]);
 
   useEffect(() => {
     if (imageFiles.length > 0) {
@@ -654,6 +662,8 @@ const App: React.FC = () => {
 
             selectedMealTypes={selectedMealTypes}
             onSelectedMealTypesChange={setSelectedMealTypes}
+            effortFilters={effortFilters}
+            onEffortFiltersChange={setEffortFilters}
             error={error}
             hasGenerationsLeft={hasGenerationsLeft}
           />

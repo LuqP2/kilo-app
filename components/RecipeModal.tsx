@@ -381,7 +381,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                             <div className="flex items-center gap-2">
                                 <button onClick={() => toggleTimer(timer.id)} className="text-slate-500 hover:text-slate-800">
                                     {timer.isRunning ? 
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg> : 
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 002 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg> : 
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
                                     }
                                 </button>
@@ -457,6 +457,19 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                                         <span><strong className="font-semibold text-slate-800">{recipe.calories}</strong> kcal / porção</span>
                                     </div>
                                 )}
+                                {recipe.totalTime && (
+                                    <div className="flex items-center gap-1.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" /></svg>
+                                        <span><strong className="font-semibold text-slate-800">{recipe.totalTime}</strong> min</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {recipe.tags && recipe.tags.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {recipe.tags.map(tag => (
+                                    <span key={tag} className="px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">{tag}</span>
+                                ))}
                             </div>
                         )}
                     </>

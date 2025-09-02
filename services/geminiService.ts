@@ -191,6 +191,17 @@ const baseRecipeSchemaProperties = {
     type: Type.NUMBER,
     description: "Uma estimativa do número de calorias por porção. Ex: 450"
   },
+  totalTime: {
+    type: Type.NUMBER,
+    description: "O tempo total estimado em minutos para preparar e cozinhar a receita. Ex: 30"
+  },
+  tags: {
+    type: Type.ARRAY,
+    items: {
+        type: Type.STRING
+    },
+    description: "Uma lista de tags que descrevem a receita, como 'Rápido', 'Uma Panela Só', 'Sem Forno', 'Vegetariano'. Inclua as tags de esforço se aplicável."
+  },
   commonQuestions: {
     type: Type.ARRAY,
     items: {
@@ -241,7 +252,7 @@ export async function getRecipeFromImage(imageFile: File, settings: UserSettings
   const imagePart = await fileToGenerativePart(imageFile);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
 
-  const prompt = `Analise esta imagem de um prato pronto. Por favor, identifique o prato e forneça uma receita completa e detalhada para prepará-lo, em português do Brasil. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} As instruções devem ser claras e completas para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. ${personalizationPrompt} A resposta DEVE ser um único objeto JSON que segue estritamente o schema fornecido. A receita deve incluir 'recipeName', 'description', uma lista de 'ingredientsNeeded' (cada um com 'name', 'quantity', 'unit'), 'howToPrepare' (como um array de strings de passos claros), 'servings', uma estimativa de 'calories' por porção, 'commonQuestions' (com apenas 1 pergunta) e um array opcional 'techniques' com termos culinários importantes. Se você não conseguir identificar um prato com confiança a partir da imagem, retorne null.`;
+  const prompt = `Analise esta imagem de um prato pronto. Por favor, identifique o prato e forneça uma receita completa e detalhada para prepará-lo, em português do Brasil. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} As instruções devem ser claras e completas para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. ${personalizationPrompt} A resposta DEVE ser um único objeto JSON que segue estritamente o schema fornecido. A receita deve incluir 'recipeName', 'description', uma lista de 'ingredientsNeeded' (cada um com 'name', 'quantity', 'unit'), 'howToPrepare' (como um array de strings de passos claros), 'servings', uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, 'commonQuestions' (com apenas 1 pergunta) e um array opcional 'techniques' com termos culinários importantes. Se você não conseguir identificar um prato com confiança a partir da imagem, retorne null.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -295,6 +306,8 @@ export async function suggestLeftoverRecipes(imageFile: File, settings: UserSett
     - 'howToPrepare': O passo a passo da nova receita, que deve incluir como incorporar as sobras.
     - 'servings': O número de porções, que deve ser 2 por padrão.
     - 'calories': Uma estimativa de calorias por porção.
+    - 'totalTime': O tempo total estimado em minutos para a nova receita.
+    - 'tags': Tags descritivas para a nova receita.
     - 'commonQuestions': Uma lista de 1 pergunta comum que um cozinheiro poderia ter sobre esta nova receita.
     - 'techniques': Um array opcional de até 5 técnicas culinárias importantes mencionadas na nova receita.
 
@@ -347,6 +360,17 @@ const buildPersonalizationPrompt = (settings: UserSettings): string => {
     if (settings.isLactoseFree) prompt += ' A receita deve ser estritamente sem lactose.';
     if (settings.allergies && settings.allergies.trim() !== '') {
         prompt += ` A receita NÃO PODE CONTER nenhum dos seguintes ingredientes: ${settings.allergies.trim()}.`;
+    }
+
+    if (settings.effortFilters && settings.effortFilters.length > 0) {
+        prompt += ' A receita deve atender aos seguintes critérios de esforço: ';
+        const effortDescriptions = settings.effortFilters.map(filter => {
+            if (filter === 'Rápido (-30 min)') return 'ser rápida (tempo total de preparo e cozimento inferior a 30 minutos)';
+            if (filter === 'Uma Panela Só') return 'usar apenas uma panela/frigideira principal para minimizar a louça';
+            if (filter === 'Sem Forno') return 'não utilizar o forno';
+            return '';
+        });
+        prompt += effortDescriptions.filter(Boolean).join(', ') + '.';
     }
 
     const { flavorProfile, savedRecipeAnalysis, kitchenEquipment } = settings;
@@ -415,11 +439,11 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
   const ingredientsList = `Ingredientes disponíveis: ${ingredients.join(', ')}.`;
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
 
-  let prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 receitas simples e deliciosas em português do Brasil, que por padrão sirvam 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
+  let prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 receitas simples e deliciosas em português do Brasil, que por padrão sirvam 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
   if (existingRecipes.length > 0) {
     const existingRecipeNames = existingRecipes.map(r => r.recipeName).join(', ');
-    prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 NOVAS receitas simples e deliciosas, em português do Brasil, DIFERENTES das seguintes: ${existingRecipeNames}. As receitas devem, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
+    prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 NOVAS receitas simples e deliciosas, em português do Brasil, DIFERENTES das seguintes: ${existingRecipeNames}. As receitas devem, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
   }
 
   const response = await ai.models.generateContent({
@@ -471,7 +495,7 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
     const ingredientsList = `Ingredientes disponíveis: ${ingredients.join(', ')}.`;
     const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
 
-    const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
+    const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -499,7 +523,7 @@ export async function suggestMarketModeRecipes(mainIngredients: string[], settin
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
-  const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo o schema. Cada receita também deve incluir um array 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, e um array opcional 'techniques'.`;
+  const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo o schema. Cada receita também deve incluir um array 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -575,7 +599,7 @@ export async function generateWeeklyPlan(ingredients: string[], duration: number
         Gere uma lista de compras única e consolidada, contendo APENAS os ingredientes adicionais necessários para completar todas as receitas do plano.
         IMPORTANTE: Todas as receitas dentro do plano devem ser detalhadas, fáceis de seguir para um cozinheiro iniciante e, por padrão, servir 2 pessoas. Por exemplo, se uma receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. Todo o conteúdo deve ser em português do Brasil e seguir estas regras de personalização: ${personalizationPrompt}.
         ${concisenessPrompt}
-        A resposta deve ser um objeto JSON seguindo o schema, com uma 'shoppingList' e um 'plan' diário. O 'plan' deve conter um array 'meals' para cada dia. Cada receita dentro do plano deve ter o campo 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, e um array opcional 'techniques'.
+        A resposta deve ser um objeto JSON seguindo o schema, com uma 'shoppingList' e um 'plan' diário. O 'plan' deve conter um array 'meals' para cada dia. Cada receita dentro do plano deve ter o campo 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.
     `;
 
     const response = await ai.models.generateContent({

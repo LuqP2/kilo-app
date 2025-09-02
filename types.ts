@@ -16,6 +16,8 @@ export interface Recipe {
   howToPrepare: string[];
   servings?: number;
   calories?: number;
+  totalTime?: number;
+  tags?: string[];
   commonQuestions?: string[];
   techniques?: Technique[];
   // For "Use what I have" mode
@@ -28,6 +30,7 @@ export interface Recipe {
 export type MealType = 'Sobremesa' | 'Café da Manhã' | 'Almoço' | 'Jantar' | 'Lanche' | 'Acompanhamento';
 export const MEAL_TYPES: MealType[] = ['Sobremesa', 'Café da Manhã', 'Almoço', 'Jantar', 'Lanche', 'Acompanhamento'];
 
+export type EffortFilter = 'Rápido (-30 min)' | 'Uma Panela Só' | 'Sem Forno';
 
 export interface DailyPlan {
   day: string;
@@ -57,6 +60,7 @@ export interface UserSettings {
   isLactoseFree: boolean;
   isFitMode: boolean;
   allergies: string;
+  effortFilters: EffortFilter[];
   flavorProfile: FlavorProfile;
   kitchenEquipment: string[]; // Equipamentos de cozinha do usuário
   pantryStaples: string[]; // Temperos e itens básicos que o usuário sempre tem
