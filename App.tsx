@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient } from './types';
+import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT } from './services/usageService';
 
@@ -80,6 +80,7 @@ const App: React.FC = () => {
   const [initialSettingsTab, setInitialSettingsTab] = useState<'preferences' | 'kitchen'>('preferences');
 
   const [selectedMealTypes, setSelectedMealTypes] = useState<MealType[]>(['Almoço', 'Jantar']);
+  const [effortFilters, setEffortFilters] = useState<EffortFilter[]>([]);
 
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [remainingGenerations, setRemainingGenerations] = useState(FREE_PLAN_LIMIT);
@@ -210,7 +211,7 @@ const App: React.FC = () => {
 
     try {
       if (searchIngredients.length > 0) {
-        const suggested = await suggestRecipes(searchIngredients, [], userSettings, selectedMealTypes);
+        const suggested = await suggestRecipes(searchIngredients, [], userSettings, selectedMealTypes, effortFilters);
         setRecipes(addIdToRecipes(suggested));
         updateUsageCount();
       }
@@ -219,7 +220,7 @@ const App: React.FC = () => {
       handleApiError(e);
       setAppState(AppState.IDLE);
     }
-  }, [userSettings, selectedMealTypes, updateUsageCount]);
+  }, [userSettings, selectedMealTypes, effortFilters, updateUsageCount]);
 
   const handleUnifiedImageUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
@@ -309,7 +310,7 @@ const App: React.FC = () => {
   }, [manualIngredients, startInitialSearch]);
 
 
-  const regenerateRecipes = useCallback(async (ingredientsToSearch: string[]) => {
+  const regenerateRecipes = useCallback(async (ingredientsToSearch: string[], mealTypes: MealType[], effort: EffortFilter[]) => {
     setIsRegeneratingRecipes(true);
     setError(null);
     setIngredientsForCurrentRecipes(ingredientsToSearch);
@@ -319,7 +320,7 @@ const App: React.FC = () => {
 
     try {
       if (ingredientsToSearch.length > 0) {
-        const suggested = await suggestRecipes(ingredientsToSearch, [], userSettings, selectedMealTypes);
+        const suggested = await suggestRecipes(ingredientsToSearch, [], userSettings, mealTypes, effort);
         setRecipes(addIdToRecipes(suggested));
         updateUsageCount();
       } else {
@@ -330,7 +331,7 @@ const App: React.FC = () => {
     } finally {
       setIsRegeneratingRecipes(false);
     }
-  }, [userSettings, selectedMealTypes, updateUsageCount]);
+  }, [userSettings, updateUsageCount]);
 
   const handleFetchMarketRecipes = useCallback(async () => {
     if (marketRecipes.length > 0 || isFetchingMarketRecipes) return;
@@ -338,7 +339,7 @@ const App: React.FC = () => {
     setIsFetchingMarketRecipes(true);
     setError(null);
     try {
-      const suggested = await suggestMarketModeRecipes(ingredients, userSettings, selectedMealTypes);
+      const suggested = await suggestMarketModeRecipes(ingredients, userSettings, selectedMealTypes, effortFilters);
       setMarketRecipes(addIdToRecipes(suggested));
       updateUsageCount();
     } catch (e) {
@@ -346,7 +347,7 @@ const App: React.FC = () => {
     } finally {
       setIsFetchingMarketRecipes(false);
     }
-  }, [ingredients, marketRecipes, isFetchingMarketRecipes, userSettings, selectedMealTypes, updateUsageCount]);
+  }, [ingredients, marketRecipes, isFetchingMarketRecipes, userSettings, selectedMealTypes, effortFilters, updateUsageCount]);
 
   const handleFetchWeeklyPlan = useCallback(async (duration: number, mealTypesForPlan: MealType[]) => {
     if (isFetchingWeeklyPlan) return;
@@ -408,7 +409,7 @@ const App: React.FC = () => {
     try {
       const ingredientsToSearch = selectedIngredients.length > 0 ? selectedIngredients : ingredients;
       if (ingredientsToSearch.length > 0) {
-        const more = await suggestRecipes(ingredientsToSearch, recipes, userSettings, selectedMealTypes);
+        const more = await suggestRecipes(ingredientsToSearch, recipes, userSettings, selectedMealTypes, effortFilters);
         setRecipes(prevRecipes => [...prevRecipes, ...addIdToRecipes(more)]);
         updateUsageCount();
       }
@@ -417,7 +418,7 @@ const App: React.FC = () => {
     } finally {
       setIsFetchingMore(false);
     }
-  }, [ingredients, selectedIngredients, recipes, userSettings, selectedMealTypes, updateUsageCount]);
+  }, [ingredients, selectedIngredients, recipes, userSettings, selectedMealTypes, effortFilters, updateUsageCount]);
 
   const handleRemoveRecipe = (idToRemove: string) => {
     if (resultsMode === ResultsMode.USE_WHAT_I_HAVE) {
@@ -434,7 +435,7 @@ const App: React.FC = () => {
         const ingredientsToSearch = selectedIngredients.length > 0 ? selectedIngredients : ingredients;
         const recipeList = resultsMode === ResultsMode.USE_WHAT_I_HAVE ? recipes : marketRecipes;
         
-        const newRecipe = await suggestSingleRecipe(ingredientsToSearch, recipeList, userSettings, selectedMealTypes);
+        const newRecipe = await suggestSingleRecipe(ingredientsToSearch, recipeList, userSettings, selectedMealTypes, effortFilters);
         updateUsageCount();
         if (newRecipe) {
             const recipeSetter = resultsMode === ResultsMode.USE_WHAT_I_HAVE ? setRecipes : setMarketRecipes;
@@ -449,7 +450,7 @@ const App: React.FC = () => {
     } finally {
         setReplacingRecipeIndex(null);
     }
-  }, [ingredients, selectedIngredients, recipes, marketRecipes, resultsMode, userSettings, selectedMealTypes, updateUsageCount]);
+  }, [ingredients, selectedIngredients, recipes, marketRecipes, resultsMode, userSettings, selectedMealTypes, effortFilters, updateUsageCount]);
   
   const handleReset = () => {
     setImageFiles([]);
@@ -654,6 +655,8 @@ const App: React.FC = () => {
 
             selectedMealTypes={selectedMealTypes}
             onSelectedMealTypesChange={setSelectedMealTypes}
+            effortFilters={effortFilters}
+            onSelectedEffortFiltersChange={setEffortFilters}
             error={error}
             hasGenerationsLeft={hasGenerationsLeft}
           />
