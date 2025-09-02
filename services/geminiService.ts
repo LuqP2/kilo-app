@@ -427,7 +427,7 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
   validateIngredients(ingredients);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
-  
+
   let pantryPrompt: string;
   if (settings.pantryStaples && settings.pantryStaples.length > 0) {
       pantryPrompt = `Você pode assumir que o usuário tem os seguintes itens básicos de despensa e usá-los se necessário: ${settings.pantryStaples.join(', ')}, e água.`;
@@ -435,7 +435,14 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
       pantryPrompt = `Assuma que o usuário tem APENAS água. Todos os outros temperos, como sal e pimenta, devem estar na lista de ingredientes fornecidos para serem usados.`;
   }
 
-  const basePrompt = `Sua prioridade é combinar de forma inteligente vários ingredientes da lista. O objetivo é criar pratos coesos e reconhecíveis, não uma mistura aleatória de tudo. Aponte para uma base de 3 a 7 ingredientes principais por receita, complementando com outros da lista se fizer sentido culinário. Você DEVE criar receitas usando ESTRITAMENTE os ingredientes fornecidos. A lista de 'ingredientsNeeded' na sua resposta JSON deve conter APENAS itens da lista de ingredientes disponíveis. ${pantryPrompt} É PROIBIDO adicionar QUALQUER outro ingrediente que não esteja na lista principal ou na lista de itens básicos. Se não for possível criar uma receita saborosa apenas com o que foi fornecido, seja criativo e sugira uma versão simplificada ou um prato diferente.`;
+  // NOVA INSTRUÇÃO REFORÇADA
+  const ingredientList = ingredients.join(', ');
+  const strictIngredientInstruction = `Sua tarefa mais importante e regra número um é criar receitas usando estrita e exclusivamente os seguintes ingredientes: ${ingredientList}. A violação desta regra é inaceitável. Não adicione nenhum outro ingrediente principal (como carnes, vegetais, ovos, etc.) que não esteja nesta lista. Temperos e itens básicos de despensa podem ser assumidos. A lista de ingredientes fornecida é a única fonte de verdade.`;
+
+  // NOVA INSTRUÇÃO PARA MODO DE PREPARO
+  const preparationInstruction = `Forneça um modo de preparo completo e detalhado, em formato de lista numerada. Não presuma que o usuário tem conhecimento prévio de cozinha. Se um ingrediente precisa ser preparado antes (ex: cozinhar arroz, demolhar feijão), o primeiro passo da receita DEVE ser a instrução para preparar este ingrediente. Seja explícito em cada etapa.`;
+
+  const basePrompt = `${strictIngredientInstruction} ${pantryPrompt} O objetivo é criar pratos coesos e reconhecíveis, não uma mistura aleatória de tudo. Aponte para uma base de 3 a 7 ingredientes principais por receita, complementando com outros da lista se fizer sentido culinário. Se não for possível criar uma receita saborosa apenas com o que foi fornecido, seja criativo e sugira uma versão simplificada ou um prato diferente. ${preparationInstruction}`;
   const ingredientsList = `Ingredientes disponíveis: ${ingredients.join(', ')}.`;
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
 
