@@ -48,6 +48,8 @@ const initialSettings: UserSettings = {
   }
 };
 
+const BASIC_PANTRY_ITEMS = ['Cebola', 'Alho', 'Sal', 'Azeite', 'Pimenta do Reino'];
+
 const App: React.FC = () => {
   const { userProfile, updateUserProfile } = useAuth();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -395,12 +397,15 @@ const App: React.FC = () => {
   }, [ingredients, isFetchingWeeklyPlan, userSettings, updateUsageCount]);
 
   const handleAddIngredient = (ingredient: string) => {
-    const trimmed = ingredient.trim().toLowerCase();
-    if (trimmed && !ingredients.includes(trimmed)) {
-        const newIngredients = [...ingredients, trimmed];
-        setIngredients(newIngredients);
-        setSelectedIngredients([...selectedIngredients, trimmed]);
-    }
+    const trimmedIngredient = ingredient.trim().toLowerCase();
+    if (!trimmedIngredient || ingredients.includes(trimmedIngredient)) return;
+
+    const finalIngredients = ingredients.length === 0
+      ? [trimmedIngredient, ...BASIC_PANTRY_ITEMS]
+      : [...ingredients, trimmedIngredient];
+
+    setIngredients(finalIngredients);
+    setSelectedIngredients(finalIngredients);
   };
 
   const handleRemoveIngredient = (ingredientToRemove: string) => {
@@ -409,13 +414,19 @@ const App: React.FC = () => {
   };
   
   const handleAddManualIngredient = (ingredient: string) => {
-     const newIngredients = ingredient
+    const newIngredients = ingredient
       .split(',')
       .map(ing => ing.trim().toLowerCase())
       .filter(ing => ing && ing.length > 0 && !manualIngredients.includes(ing));
-    
+
     if (newIngredients.length > 0) {
-      setManualIngredients(prev => [...prev, ...newIngredients]);
+      setManualIngredients(prev => {
+        const baseList = prev.length === 0 
+          ? [...newIngredients, ...BASIC_PANTRY_ITEMS]
+          : [...prev, ...newIngredients];
+        
+        return [...new Set(baseList)];
+      });
     }
   };
 
