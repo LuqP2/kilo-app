@@ -1,19 +1,7 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
 import { checkAndIncrementUsage } from './usageService';
-
-// --- INÍCIO DA CORREÇÃO ---
-
-// Pega a chave da API Gemini do ambiente Vite, que é o correto para o frontend.
-const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-// Verifica se a chave foi encontrada. Se não, lança um erro claro.
-if (!geminiApiKey) {
-  throw new Error("VITE_GEMINI_API_KEY environment variable not set");
-}
-
-// Inicializa a IA usando a chave correta.
-const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+// Frontend no longer initializes GoogleGenAI directly. Calls are proxied to a secure server endpoint.
+const FUNCTIONS_BASE = `${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api`;
 
 
 // The recipe object returned from the API, without the client-side ID
@@ -61,290 +49,130 @@ function validateIngredients(ingredients: string[]): void {
 
 
 async function fileToGenerativePart(file: File) {
+  // For compatibility with older code paths; prefer fileToBase64 for making requests to functions
   const base64EncodedDataPromise = new Promise<string>((resolve) => {
     const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.onloadend = () => resolve(reader.result as string);
     reader.readAsDataURL(file);
   });
+  const full = await base64EncodedDataPromise;
   return {
-    inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
+    inlineData: { data: full.split(',')[1], mimeType: file.type },
   };
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export async function identifyIngredients(imageFiles: File[]): Promise<string[]> {
   checkAndIncrementUsage();
-  const imageParts = await Promise.all(imageFiles.map(fileToGenerativePart));
-  
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        ...imageParts,
-        { text: 'Analise estas imagens de uma geladeira ou despensa e liste todos os ingredientes comestíveis que você pode identificar. As imagens podem estar um pouco sem foco ou de baixa qualidade, mas faça o seu melhor para identificar os itens. Combine os ingredientes de todas as fotos em uma única lista. A resposta DEVE ser em português do Brasil. Responda com um array JSON de strings. Por exemplo: ["ovos", "leite", "alface"]' },
-      ],
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.STRING,
-        }
-      },
-      thinkingConfig: { thinkingBudget: 0 }
-    }
+  const images = await Promise.all(imageFiles.map(async (file) => {
+    const base64 = await fileToBase64(file);
+    return { data: base64.split(',')[1], mimeType: file.type };
+  }));
+
+  const resp = await fetch(`${FUNCTIONS_BASE}/identifyIngredients`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ images })
   });
 
+  if (!resp.ok) {
+    console.error('identifyIngredients failed', await resp.text());
+    return [];
+  }
+
+  const body = await resp.json();
   try {
-    const jsonString = response.text.trim();
-    const ingredients = JSON.parse(jsonString);
+    const ingredients = JSON.parse(body.text.trim());
     if (Array.isArray(ingredients) && ingredients.every(item => typeof item === 'string')) {
       validateIngredients(ingredients);
       return ingredients;
     }
-    return [];
   } catch (e) {
-    console.error("Failed to parse ingredients JSON or validation failed:", e);
-    if (e instanceof Error && e.message.includes('Ingrediente inválido detectado')) {
-      throw e;
-    }
-    return [];
+    console.error('Failed to parse ingredients from function response', e);
   }
+  return [];
 }
 
 export async function classifyImage(imageFile: File): Promise<'INGREDIENTS' | 'DISH'> {
-  const imagePart = await fileToGenerativePart(imageFile);
-  
-  const prompt = `Analise esta imagem. A imagem mostra uma coleção de ingredientes crus (como dentro de uma geladeira, despensa ou em uma bancada) ou mostra um único prato finalizado e empratado? Responda com apenas uma palavra: 'INGREDIENTS' se for uma coleção de ingredientes, ou 'DISH' se for um prato finalizado.`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        imagePart,
-        { text: prompt },
-      ],
-    },
-    config: {
-        thinkingConfig: { thinkingBudget: 0 }
-    }
+  const base64 = await fileToBase64(imageFile);
+  const resp = await fetch(`${FUNCTIONS_BASE}/classifyImage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type } })
   });
-
-  const text = response.text.trim().toUpperCase();
-  if (text.includes('DISH')) {
-    return 'DISH';
+  if (!resp.ok) {
+    console.error('classifyImage failed', await resp.text());
+    return 'INGREDIENTS';
   }
-  // Default to ingredients if uncertain or if the response is not clear
-  return 'INGREDIENTS'; 
+  const body = await resp.json();
+  const text = (body.text || '').trim().toUpperCase();
+  if (text.includes('DISH')) return 'DISH';
+  return 'INGREDIENTS';
 }
 
 
-const ingredientSchema = {
-    type: Type.OBJECT,
-    properties: {
-        name: { 
-            type: Type.STRING, 
-            description: "Nome do ingrediente, por exemplo, 'farinha de trigo'." 
-        },
-        quantity: { 
-            type: Type.STRING, 
-            description: "Quantidade do ingrediente, como '1', '1/2', 'a gosto'." 
-        },
-        unit: { 
-            type: Type.STRING, 
-            description: "Unidade de medida. Exemplos: 'xícara', 'colher de sopa', 'unidades', 'gramas'. Deixar em branco se não aplicável (ex: para 'a gosto')." 
-        },
-    },
-    required: ["name", "quantity", "unit"],
-};
-
-const techniqueSchema = {
-    type: Type.OBJECT,
-    properties: {
-        term: { type: Type.STRING, description: "O termo culinário da técnica, por exemplo, 'Refogar'." },
-        description: { type: Type.STRING, description: "Uma descrição muito breve (uma frase) da técnica." }
-    },
-    required: ["term", "description"]
-};
-
-const baseRecipeSchemaProperties = {
-  recipeName: {
-    type: Type.STRING,
-    description: "O nome da receita.",
-  },
-  description: {
-    type: Type.STRING,
-    description: "Uma breve descrição da receita.",
-  },
-  howToPrepare: {
-    type: Type.ARRAY,
-    items: {
-        type: Type.STRING
-    },
-    description: "Uma lista de strings com as instruções passo a passo para preparar a receita. Cada string no array deve ser um passo individual."
-  },
-  servings: {
-    type: Type.NUMBER,
-    description: "O número padrão de porções que a receita serve. O padrão deve ser 2."
-  },
-  calories: {
-    type: Type.NUMBER,
-    description: "Uma estimativa do número de calorias por porção. Ex: 450"
-  },
-  totalTime: {
-    type: Type.NUMBER,
-    description: "O tempo total estimado em minutos para preparar e cozinhar a receita. Ex: 30"
-  },
-  tags: {
-    type: Type.ARRAY,
-    items: {
-        type: Type.STRING
-    },
-    description: "Uma lista de tags que descrevem a receita, como 'Rápido', 'Uma Panela Só', 'Sem Forno', 'Vegetariano'. Inclua as tags de esforço se aplicável."
-  },
-  commonQuestions: {
-    type: Type.ARRAY,
-    items: {
-      type: Type.STRING,
-    },
-    description: "Uma lista de 1 pergunta comum e concisa que um cozinheiro iniciante poderia ter sobre esta receita. Ex: 'Posso usar outro tipo de queijo?'"
-  },
-  techniques: {
-    type: Type.ARRAY,
-    items: techniqueSchema,
-    description: "Uma lista de até 5 técnicas culinárias importantes mencionadas no modo de preparo. Identifique termos como 'Refogar', 'Julienne', 'Emulsionar', etc."
-  }
-};
-
-const standardRecipeSchema = {
-    type: Type.OBJECT,
-    properties: {
-      ...baseRecipeSchemaProperties,
-      ingredientsNeeded: {
-        type: Type.ARRAY,
-        items: ingredientSchema,
-        description: "Uma lista estruturada dos ingredientes necessários para a receita, cada um com nome, quantidade e unidade.",
-      },
-    },
-    required: ["recipeName", "description", "ingredientsNeeded", "howToPrepare", "servings", "calories"],
-};
-
-const marketRecipeSchema = {
-    type: Type.OBJECT,
-    properties: {
-        ...baseRecipeSchemaProperties,
-        ingredientsYouHave: {
-            type: Type.ARRAY,
-            items: ingredientSchema,
-            description: "Lista dos ingredientes que o usuário já informou que tem (baseado na lista fornecida).",
-        },
-        ingredientsToBuy: {
-            type: Type.ARRAY,
-            items: ingredientSchema,
-            description: "Lista de compras com os ingredientes que faltam para a receita.",
-        },
-    },
-    required: ["recipeName", "description", "ingredientsYouHave", "ingredientsToBuy", "howToPrepare", "servings", "calories"],
-};
+// NOTE: Schema definitions and in-browser GenAI calls have been removed from the frontend.
+// All model invocations and response schema enforcement happen server-side in the Cloud Functions.
 
 export async function getRecipeFromImage(imageFile: File, settings: UserSettings): Promise<ApiRecipe | null> {
   checkAndIncrementUsage();
-  const imagePart = await fileToGenerativePart(imageFile);
-  const personalizationPrompt = buildPersonalizationPrompt(settings);
-
-  const prompt = `Analise esta imagem de um prato pronto. Por favor, identifique o prato e forneça uma receita completa e detalhada para prepará-lo, em português do Brasil. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} As instruções devem ser claras e completas para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata. ${personalizationPrompt} A resposta DEVE ser um único objeto JSON que segue estritamente o schema fornecido. A receita deve incluir 'recipeName', 'description', uma lista de 'ingredientsNeeded' (cada um com 'name', 'quantity', 'unit'), 'howToPrepare' (como um array de strings de passos claros), 'servings', uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, 'commonQuestions' (com apenas 1 pergunta) e um array opcional 'techniques' com termos culinários importantes. Se você não conseguir identificar um prato com confiança a partir da imagem, retorne null.`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        imagePart,
-        { text: prompt },
-      ],
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: standardRecipeSchema,
-      thinkingConfig: { thinkingBudget: 0 }
-    }
+  const base64 = await fileToBase64(imageFile);
+  const resp = await fetch(`${FUNCTIONS_BASE}/getRecipeFromImage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type }, settings })
   });
 
+  if (!resp.ok) {
+    console.error('getRecipeFromImage failed', await resp.text());
+    return null;
+  }
+
+  const body = await resp.json();
   try {
-    const jsonString = response.text.trim();
-    if (jsonString.toLowerCase() === 'null') {
-        return null;
-    }
+    const jsonString = body.text.trim();
+    if (jsonString.toLowerCase() === 'null') return null;
     const recipe = JSON.parse(jsonString) as ApiRecipe;
-    if (recipe && recipe.ingredientsNeeded) {
-        validateIngredients(recipe.ingredientsNeeded.map((ing: Ingredient) => ing.name));
-    }
+    if (recipe && recipe.ingredientsNeeded) validateIngredients(recipe.ingredientsNeeded.map((ing: Ingredient) => ing.name));
     return recipe;
   } catch (e) {
-    console.error("Failed to parse recipe from image JSON or validation failed:", e);
-    if (e instanceof Error && e.message.includes('Ingrediente inválido detectado')) {
-      throw e;
-    }
+    console.error('Failed to parse recipe from function response', e);
     return null;
   }
 }
 
 export async function suggestLeftoverRecipes(imageFile: File, settings: UserSettings): Promise<ApiRecipe[]> {
   checkAndIncrementUsage();
-  const imagePart = await fileToGenerativePart(imageFile);
-  const personalizationPrompt = buildPersonalizationPrompt(settings);
-
-  const prompt = `
-    Analise esta imagem de um prato de comida que sobrou. Primeiro, identifique os componentes principais (ex: 'frango assado', 'arroz branco', 'brócolis cozido').
-    Com base nesses componentes, crie 3 receitas NOVAS e criativas para transformar essas sobras em uma refeição completamente diferente. ${concisenessPrompt}
-    Para cada receita, forneça a resposta como um objeto JSON. A resposta final deve ser um array de 3 desses objetos.
-    ${personalizationPrompt}
-    Cada objeto deve seguir o schema, com:
-    - 'recipeName': O nome do novo prato.
-    - 'description': Uma descrição que explique como a receita transforma as sobras.
-    - 'ingredientsYouHave': Liste aqui os componentes da sobra que você identificou. Seja genérico, por exemplo: "Sobras de frango assado com arroz".
-    - 'ingredientsToBuy': Liste os ingredientes ADICIONAIS necessários para a nova receita.
-    - 'howToPrepare': O passo a passo da nova receita, que deve incluir como incorporar as sobras.
-    - 'servings': O número de porções, que deve ser 2 por padrão.
-    - 'calories': Uma estimativa de calorias por porção.
-    - 'totalTime': O tempo total estimado em minutos para a nova receita.
-    - 'tags': Tags descritivas para a nova receita.
-    - 'commonQuestions': Uma lista de 1 pergunta comum que um cozinheiro poderia ter sobre esta nova receita.
-    - 'techniques': Um array opcional de até 5 técnicas culinárias importantes mencionadas na nova receita.
-
-    Seja criativo! Pense em pratos como tortas, saladas incrementadas, risotos, sanduíches gourmet, etc. A resposta deve ser em português do Brasil.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        imagePart,
-        { text: prompt },
-      ],
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: marketRecipeSchema,
-      },
-    }
+  const base64 = await fileToBase64(imageFile);
+  const resp = await fetch(`${FUNCTIONS_BASE}/suggestLeftoverRecipes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type }, settings })
   });
 
+  if (!resp.ok) {
+    console.error('suggestLeftoverRecipes failed', await resp.text());
+    return [];
+  }
+
+  const body = await resp.json();
   try {
-    const jsonString = response.text.trim();
+    const jsonString = body.text.trim();
     const recipes = JSON.parse(jsonString) as ApiRecipe[];
     for (const recipe of recipes) {
-        if (recipe.ingredientsToBuy) {
-             validateIngredients(recipe.ingredientsToBuy.map(ing => ing.name));
-        }
+      if (recipe.ingredientsToBuy) validateIngredients(recipe.ingredientsToBuy.map(ing => ing.name));
     }
     return recipes;
   } catch (e) {
-    console.error("Failed to parse leftover recipes JSON or validation failed:", e);
-    if (e instanceof Error && e.message.includes('Ingrediente inválido detectado')) {
-      throw e;
-    }
+    console.error('Failed to parse leftover recipes from function response', e);
     return [];
   }
 }
@@ -453,32 +281,32 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
     prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira 5 NOVAS receitas simples e deliciosas, em português do Brasil, DIFERENTES das seguintes: ${existingRecipeNames}. As receitas devem, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON de objetos. Cada objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
   }
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: standardRecipeSchema,
-      },
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  });
-
+  // Proxy to backend function that calls Gemini server-side
   try {
-    const jsonString = response.text.trim();
+    const resp = await fetch(`${FUNCTIONS_BASE}/suggestRecipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredients, settings, existingRecipeNames: existingRecipes.map(r => r.recipeName), mealTypes })
+    });
+
+    if (!resp.ok) {
+      console.error('suggestRecipes failed', await resp.text());
+      return [];
+    }
+
+    const body = await resp.json();
+    const jsonString = (body.text || '').trim();
     const recipes = JSON.parse(jsonString) as ApiRecipe[];
-    
+
     if (existingRecipes.length === 0) {
-        const cacheKey = generateCacheKey(ingredients, settings, mealTypes);
-        recipeCache.set(cacheKey, recipes);
-        console.log('Result cached');
+      const cacheKey = generateCacheKey(ingredients, settings, mealTypes);
+      recipeCache.set(cacheKey, recipes);
+      console.log('Result cached');
     }
 
     return recipes;
   } catch (e) {
-    console.error("Failed to parse recipes JSON:", e);
+    console.error('Failed to fetch/parse recipes from function', e);
     return [];
   }
 }
@@ -504,23 +332,23 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
 
     const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: standardRecipeSchema,
-            thinkingConfig: { thinkingBudget: 0 }
-        }
-    });
-
     try {
-        const jsonString = response.text.trim();
-        const recipe = JSON.parse(jsonString);
-        return recipe as ApiRecipe;
-    } catch (e) {
-        console.error("Failed to parse single recipe JSON:", e);
+      const resp = await fetch(`${FUNCTIONS_BASE}/suggestSingleRecipe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients, recipesToExcludeNames: excludedNames, settings, mealTypes })
+      });
+      if (!resp.ok) {
+        console.error('suggestSingleRecipe failed', await resp.text());
         return null;
+      }
+      const body = await resp.json();
+      const jsonString = (body.text || '').trim();
+      const recipe = JSON.parse(jsonString) as ApiRecipe;
+      return recipe;
+    } catch (e) {
+      console.error('Failed to fetch/parse single recipe from function', e);
+      return null;
     }
 }
 
@@ -532,64 +360,28 @@ export async function suggestMarketModeRecipes(mainIngredients: string[], settin
   const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante; por exemplo, se a receita usar feijão, explique como cozinhá-lo do zero ou especifique o uso de feijão em lata.";
   const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo o schema. Cada receita também deve incluir um array 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: marketRecipeSchema,
-      },
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  });
-
   try {
-    const jsonString = response.text.trim();
-    const recipes = JSON.parse(jsonString);
-    return recipes as ApiRecipe[];
+    const resp = await fetch(`${FUNCTIONS_BASE}/suggestMarketModeRecipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mainIngredients, settings, mealTypes })
+    });
+    if (!resp.ok) {
+      console.error('suggestMarketModeRecipes failed', await resp.text());
+      return [];
+    }
+    const body = await resp.json();
+    const jsonString = (body.text || '').trim();
+    const recipes = JSON.parse(jsonString) as ApiRecipe[];
+    return recipes;
   } catch (e) {
-    console.error("Failed to parse market mode recipes JSON:", e);
+    console.error('Failed to fetch/parse market mode recipes from function', e);
     return [];
   }
 }
 
 
-const weeklyPlanSchema = {
-    type: Type.OBJECT,
-    properties: {
-        shoppingList: {
-            type: Type.ARRAY,
-            items: ingredientSchema,
-            description: "Uma lista de compras única e consolidada com todos os ingredientes que o usuário precisa comprar para a semana inteira.",
-        },
-        plan: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    day: { type: Type.STRING, description: "O dia do plano, por exemplo, 'Dia 1'." },
-                    meals: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                mealType: { type: Type.STRING },
-                                recipe: standardRecipeSchema,
-                            },
-                             required: ["mealType", "recipe"],
-                        },
-                         description: "Uma lista das refeições para o dia, cada uma com seu tipo e receita.",
-                    },
-                },
-                required: ["day", "meals"],
-            },
-            description: "O plano de refeições diário, contendo as refeições solicitadas para cada dia.",
-        },
-    },
-    required: ["shoppingList", "plan"],
-};
+// weekly plan schema removed from frontend; server enforces schema and returns validated JSON
 
 
 export async function generateWeeklyPlan(ingredients: string[], duration: number, settings: UserSettings, mealTypes: MealType[]): Promise<WeeklyPlan | null> {
@@ -609,22 +401,23 @@ export async function generateWeeklyPlan(ingredients: string[], duration: number
         A resposta deve ser um objeto JSON seguindo o schema, com uma 'shoppingList' e um 'plan' diário. O 'plan' deve conter um array 'meals' para cada dia. Cada receita dentro do plano deve ter o campo 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: weeklyPlanSchema,
-        }
-    });
-
     try {
-        const jsonString = response.text.trim();
-        const plan = JSON.parse(jsonString);
-        return plan as WeeklyPlan;
-    } catch (e) {
-        console.error("Failed to parse weekly plan JSON:", e);
+      const resp = await fetch(`${FUNCTIONS_BASE}/generateWeeklyPlan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredients, duration, settings, mealTypes })
+      });
+      if (!resp.ok) {
+        console.error('generateWeeklyPlan failed', await resp.text());
         return null;
+      }
+      const body = await resp.json();
+      const jsonString = (body.text || '').trim();
+      const plan = JSON.parse(jsonString) as WeeklyPlan;
+      return plan;
+    } catch (e) {
+      console.error('Failed to fetch/parse weekly plan from function', e);
+      return null;
     }
 }
 
@@ -638,26 +431,23 @@ export async function analyzeRecipeForProfile(recipe: Recipe): Promise<string[]>
         Descrição: ${recipe.description}
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-            },
-            thinkingConfig: { thinkingBudget: 0 }
-        }
-    });
-
     try {
-        const jsonString = response.text.trim();
-        const keywords = JSON.parse(jsonString);
-        return keywords as string[];
-    } catch (e) {
-        console.error("Failed to parse recipe analysis JSON:", e);
+      const resp = await fetch(`${FUNCTIONS_BASE}/analyzeRecipeForProfile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe })
+      });
+      if (!resp.ok) {
+        console.error('analyzeRecipeForProfile failed', await resp.text());
         return [];
+      }
+      const body = await resp.json();
+      const jsonString = (body.text || '').trim();
+      const keywords = JSON.parse(jsonString) as string[];
+      return keywords;
+    } catch (e) {
+      console.error('Failed to fetch/parse recipe analysis from function', e);
+      return [];
     }
 }
 
@@ -674,15 +464,22 @@ export async function getAnswerForRecipeQuestion(recipeName: string, recipeInstr
     Sua Resposta prestativa e concisa:
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-        thinkingConfig: { thinkingBudget: 0 }
+  try {
+    const resp = await fetch(`${FUNCTIONS_BASE}/getAnswerForRecipeQuestion`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipeName, recipeInstructions, question })
+    });
+    if (!resp.ok) {
+      console.error('getAnswerForRecipeQuestion failed', await resp.text());
+      return '';
     }
-  });
-
-  return response.text.trim();
+    const body = await resp.json();
+    return (body.text || '').trim();
+  } catch (e) {
+    console.error('Failed to fetch answer for recipe question', e);
+    return '';
+  }
 }
 
 export async function adjustRecipeServings(ingredientsToAdjust: Ingredient[], originalServings: number, newServings: number): Promise<Ingredient[]> {
@@ -697,27 +494,23 @@ export async function adjustRecipeServings(ingredientsToAdjust: Ingredient[], or
         Responda APENAS com um array JSON de objetos de ingredientes, em português do Brasil. Cada objeto deve ter 'name', 'quantity', e 'unit'.
     `;
 
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: ingredientSchema,
-            },
-            thinkingConfig: { thinkingBudget: 0 }
-        }
-    });
-
-     try {
-        const jsonString = response.text.trim();
-        const ingredients = JSON.parse(jsonString);
-        return ingredients as Ingredient[];
+    try {
+      const resp = await fetch(`${FUNCTIONS_BASE}/adjustRecipeServings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredientsToAdjust, originalServings, newServings })
+      });
+      if (!resp.ok) {
+        console.error('adjustRecipeServings failed', await resp.text());
+        throw new Error('Failed to adjust servings.');
+      }
+      const body = await resp.json();
+      const jsonString = (body.text || '').trim();
+      const ingredients = JSON.parse(jsonString) as Ingredient[];
+      return ingredients;
     } catch (e) {
-        console.error("Failed to adjust ingredients JSON:", e);
-        // Fallback or re-throw
-        throw new Error("Failed to adjust servings.");
+      console.error('Failed to fetch/parse adjusted ingredients from function', e);
+      throw new Error('Failed to adjust servings.');
     }
 }
 
@@ -729,27 +522,22 @@ export async function getTechniqueExplanation(techniqueName: string): Promise<st
     ["1. Aqueça uma pequena quantidade de gordura (óleo ou manteiga) em uma panela em fogo médio.", "2. Adicione ingredientes aromáticos picados, como cebola e alho.", "3. Cozinhe, mexendo ocasionalmente, até que fiquem macios e translúcidos, mas sem dourar."]
   `;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.STRING,
-        },
-      },
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  });
-
   try {
-    const jsonString = response.text.trim();
-    const steps = JSON.parse(jsonString);
-    return steps as string[];
+    const resp = await fetch(`${FUNCTIONS_BASE}/getTechniqueExplanation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ techniqueName })
+    });
+    if (!resp.ok) {
+      console.error('getTechniqueExplanation failed', await resp.text());
+      return ["Não foi possível carregar a explicação da técnica."];
+    }
+    const body = await resp.json();
+    const jsonString = (body.text || '').trim();
+    const steps = JSON.parse(jsonString) as string[];
+    return steps;
   } catch (e) {
-    console.error("Failed to parse technique explanation JSON:", e);
+    console.error('Failed to fetch/parse technique explanation from function', e);
     return ["Não foi possível carregar a explicação da técnica."];
   }
 }

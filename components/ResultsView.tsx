@@ -283,7 +283,18 @@ const ResultsView: React.FC<ResultsViewProps> = ({
                 const isSaved = savedRecipes.some(r => r.id === recipe.id);
                 return (
                   <div key={recipe.id} className="relative bg-white rounded-xl border border-slate-200 overflow-hidden transition-all duration-300 shadow-sm hover:shadow-lg hover:border-orange-300 group active:scale-[0.98] active:shadow-md">
-                    <button onClick={() => onViewRecipe(recipe)} className="w-full text-left">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onViewRecipe(recipe)}
+                      onKeyDown={(e: React.KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                          e.preventDefault();
+                          onViewRecipe(recipe);
+                        }
+                      }}
+                      className="w-full text-left cursor-pointer"
+                    >
                       <div className="p-4">
                         <div className="flex items-start gap-3">
                           <button onClick={(e) => { e.stopPropagation(); onToggleSave(recipe); }} className="flex-shrink-0 text-slate-400 hover:text-orange-500 transition-colors" aria-label={isSaved ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
@@ -327,7 +338,7 @@ const ResultsView: React.FC<ResultsViewProps> = ({
                           Ver Modo de Preparo &rarr;
                         </span>
                       </div>
-                    </button>
+                    </div>
                      <RecipeCardActions 
                         recipe={recipe}
                         index={index}
