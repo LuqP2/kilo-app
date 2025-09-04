@@ -351,6 +351,8 @@ app.post('/getAnswerForRecipeQuestion', async (req, res) => {
   }
 });
 
+// Mount API router under /api so frontend can call endpoints like /api/suggestRecipes
+
 // Generic passthrough endpoint for getRecipeFromImage / suggestLeftoverRecipes etc.
 // Frontend should send the prompt + schema or use one of the specific endpoints above.
 
