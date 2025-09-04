@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
-import { getRemainingGenerations, FREE_PLAN_LIMIT } from './services/usageService';
+import { getRemainingGenerations, FREE_PLAN_LIMIT, checkAndIncrementUsage } from './services/usageService';
 import { AuthProvider, useAuth } from './AuthContext';
 
 import Header from './components/Header';
@@ -247,6 +247,14 @@ const App: React.FC = () => {
   const handleUnifiedImageUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Centralized usage check: only decrement on the three primary generation actions
+    try {
+      checkAndIncrementUsage();
+    } catch (e) {
+      handleApiError(e);
+      return;
+    }
+
     setImageFiles(files);
     setAppState(AppState.ANALYZING);
     setError(null);
@@ -295,6 +303,14 @@ const App: React.FC = () => {
     if (files.length === 0) return;
     const file = files[0];
 
+    // Centralized usage check
+    try {
+      checkAndIncrementUsage();
+    } catch (e) {
+      handleApiError(e);
+      return;
+    }
+
     setImageFiles([file]);
     setAppState(AppState.ANALYZING);
     setError(null);
@@ -328,6 +344,14 @@ const App: React.FC = () => {
     setImageFiles([]);
     setPreviewUrls([]);
     setAppMode(AppMode.INGREDIENTS);
+    // Centralized usage check
+    try {
+      checkAndIncrementUsage();
+    } catch (e) {
+      handleApiError(e);
+      return;
+    }
+
     await startInitialSearch(manualIngredients);
   }, [manualIngredients, startInitialSearch]);
 

@@ -1,5 +1,4 @@
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
-import { checkAndIncrementUsage } from './usageService';
 // Frontend no longer initializes GoogleGenAI directly. Calls are proxied to a secure server endpoint.
 const FUNCTIONS_BASE = `${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api`;
 
@@ -71,7 +70,6 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 export async function identifyIngredients(imageFiles: File[]): Promise<string[]> {
-  checkAndIncrementUsage();
   const images = await Promise.all(imageFiles.map(async (file) => {
     const base64 = await fileToBase64(file);
     return { data: base64.split(',')[1], mimeType: file.type };
@@ -123,7 +121,6 @@ export async function classifyImage(imageFile: File): Promise<'INGREDIENTS' | 'D
 // All model invocations and response schema enforcement happen server-side in the Cloud Functions.
 
 export async function getRecipeFromImage(imageFile: File, settings: UserSettings): Promise<ApiRecipe | null> {
-  checkAndIncrementUsage();
   const base64 = await fileToBase64(imageFile);
   const resp = await fetch(`${FUNCTIONS_BASE}/getRecipeFromImage`, {
     method: 'POST',
@@ -150,7 +147,6 @@ export async function getRecipeFromImage(imageFile: File, settings: UserSettings
 }
 
 export async function suggestLeftoverRecipes(imageFile: File, settings: UserSettings): Promise<ApiRecipe[]> {
-  checkAndIncrementUsage();
   const base64 = await fileToBase64(imageFile);
   const resp = await fetch(`${FUNCTIONS_BASE}/suggestLeftoverRecipes`, {
     method: 'POST',
@@ -242,7 +238,6 @@ const buildMealTypePrompt = (mealTypes: MealType[]): string => {
 }
 
 export async function suggestRecipes(ingredients: string[], existingRecipes: Recipe[] = [], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
-  checkAndIncrementUsage();
   // Only cache initial requests (no existing recipes)
   if (existingRecipes.length === 0) {
     const cacheKey = generateCacheKey(ingredients, settings, mealTypes);
@@ -313,7 +308,6 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
 
 
 export async function suggestSingleRecipe(ingredients: string[], recipesToExclude: Recipe[], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe | null> {
-    checkAndIncrementUsage();
     validateIngredients(ingredients);
     const personalizationPrompt = buildPersonalizationPrompt(settings);
     const mealTypePrompt = buildMealTypePrompt(mealTypes);
@@ -353,7 +347,6 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
 }
 
 export async function suggestMarketModeRecipes(mainIngredients: string[], settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
-  checkAndIncrementUsage();
   validateIngredients(mainIngredients);
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
@@ -385,7 +378,6 @@ export async function suggestMarketModeRecipes(mainIngredients: string[], settin
 
 
 export async function generateWeeklyPlan(ingredients: string[], duration: number, settings: UserSettings, mealTypes: MealType[]): Promise<WeeklyPlan | null> {
-    checkAndIncrementUsage();
     validateIngredients(ingredients);
     const personalizationPrompt = buildPersonalizationPrompt(settings);
     const mealTypesString = mealTypes.join(', ');
