@@ -16,6 +16,7 @@ import SettingsModal from './components/SettingsModal';
 import MealTypeSelector from './components/MealTypeSelector';
 import RegionLockMessage from './components/RegionLockMessage';
 import UpgradeModal from './components/UpgradeModal';
+import LoginScreen from './components/LoginScreen';
 
 // Helper to add a unique ID to recipes
 const addIdToRecipes = (recipes: Omit<Recipe, 'id'>[]): Recipe[] => {
@@ -51,7 +52,7 @@ const initialSettings: UserSettings = {
 const BASIC_PANTRY_ITEMS = ['Cebola', 'Alho', 'Sal', 'Azeite', 'Pimenta do Reino'];
 
 const App: React.FC = () => {
-  const { userProfile, updateUserProfile } = useAuth();
+  const { userProfile, updateUserProfile, currentUser, loading } = useAuth();
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -66,6 +67,8 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [appMode, setAppMode] = useState<AppMode | null>(null);
   const [resultsMode, setResultsMode] = useState<ResultsMode>(ResultsMode.USE_WHAT_I_HAVE);
+  // Guard: when auth.loading hangs, allow falling back to LoginScreen after a short timeout
+  const [authTimeoutExpired, setAuthTimeoutExpired] = useState(false);
   
   const [error, setError] = useState<string | null>(null);
   const [isRegionLockedError, setIsRegionLockedError] = useState(false);
@@ -97,6 +100,57 @@ const App: React.FC = () => {
     const remaining = getRemainingGenerations();
     setRemainingGenerations(remaining);
   }, []);
+
+  // Diagnostic: trace appState transitions and important triggers
+  useEffect(() => {
+    console.debug(`[App] appState changed -> ${appState}`);
+    if (appState === AppState.ANALYZING) {
+      // Helpful stack trace to locate the caller
+      console.trace('[App] ANALYZING entered');
+    }
+  }, [appState]);
+
+  // Diagnostic: auth state
+  useEffect(() => {
+    console.debug('[App] auth state ->', { loading, currentUserId: currentUser ? currentUser.uid : null });
+    console.debug('[App] auth state details ->', { loading, hasCurrentUser: !!currentUser, authTimeoutExpired });
+  }, [loading, currentUser, authTimeoutExpired]);
+
+  // If auth.loading stays true for too long, allow showing the login screen so the UI isn't stuck.
+  // Do not fallback if a user has already been set.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    
+    if (currentUser) {
+      // User logged in — ensure fallback is disabled
+      console.debug('[App] User detected, clearing auth timeout');
+      setAuthTimeoutExpired(false);
+      return;
+    }
+
+    // Also cancel timeout if loading is false (auth resolved)
+    if (!loading) {
+      console.debug('[App] Auth resolved, clearing timeout');
+      setAuthTimeoutExpired(false);
+      return;
+    }
+
+    if (loading) {
+      console.debug('[App] Auth loading, setting 8s timeout');
+      setAuthTimeoutExpired(false);
+      t = setTimeout(() => {
+        console.debug('[App] auth loading timeout expired, falling back to login screen');
+        setAuthTimeoutExpired(true);
+      }, 8000); // Increased to 8 seconds
+    }
+
+    return () => {
+      if (t) {
+        console.debug('[App] Clearing auth timeout');
+        clearTimeout(t);
+      }
+    };
+  }, [loading, currentUser]);
 
   const handleShowSettings = (initialTab: 'preferences' | 'kitchen' = 'preferences') => {
     setInitialSettingsTab(initialTab);
@@ -220,6 +274,7 @@ const App: React.FC = () => {
 
   const startInitialSearch = useCallback(async (searchIngredients: string[]) => {
     if (searchIngredients.length === 0) return;
+  console.debug('[App] startInitialSearch called with', searchIngredients);
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
@@ -246,6 +301,8 @@ const App: React.FC = () => {
 
   const handleUnifiedImageUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
+
+  console.debug('[App] handleUnifiedImageUpload called with files:', files.map(f => f.name));
 
     // Centralized usage check: only decrement on the three primary generation actions
     try {
@@ -302,6 +359,8 @@ const App: React.FC = () => {
   const handleLeftoversImageUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
     const file = files[0];
+
+  console.debug('[App] handleLeftoversImageUpload called with file:', file.name);
 
     // Centralized usage check
     try {
@@ -531,10 +590,26 @@ const App: React.FC = () => {
   const hasGenerationsLeft = remainingGenerations > 0;
 
   const renderContent = () => {
+    console.debug('[App] renderContent called', { loading, currentUser: !!currentUser, authTimeoutExpired });
+    
+    // While auth is resolving show LoadingView, but if it hangs, fall back to LoginScreen
+    if (loading && !authTimeoutExpired) {
+      console.debug('[App] Showing LoadingView');
+      return <LoadingView />;
+    }
+
+    // Only show LoginScreen when there's no user. The timeout fallback should not override an active user.
+    if ((!loading && !currentUser) || (authTimeoutExpired && !currentUser)) {
+      console.debug('[App] Showing LoginScreen');
+      return <LoginScreen />;
+    }
+
+    console.debug('[App] Showing main content');
+
     if (isRegionLockedError) {
       return <RegionLockMessage onRetry={handleReset} />;
     }
-    
+
     switch (appState) {
       case AppState.IDLE:
         const ingredientsIcon = (
@@ -722,57 +797,55 @@ const App: React.FC = () => {
   };
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen flex flex-col font-sans">
-        <Header 
-          onShowSaved={() => setIsSavedModalOpen(true)} 
-          savedRecipesCount={savedRecipes.length}
-          onShowSettings={() => handleShowSettings()}
-          remainingGenerations={remainingGenerations}
-          userPlan={userSettings.plan}
-        />
-        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
-              {renderContent()}
-          </div>
-        </main>
-        <Footer />
+    <div className="min-h-screen flex flex-col font-sans">
+      <Header 
+        onShowSaved={() => setIsSavedModalOpen(true)} 
+        savedRecipesCount={savedRecipes.length}
+        onShowSettings={() => handleShowSettings()}
+        remainingGenerations={remainingGenerations}
+        userPlan={userSettings.plan}
+      />
+      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
+            {renderContent()}
+        </div>
+      </main>
+      <Footer />
 
-        {selectedRecipe && (
-          <RecipeModal 
-              recipe={selectedRecipe} 
-              onClose={() => setSelectedRecipe(null)} 
-              isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
-              onToggleSave={handleToggleSaveRecipe}
-              onUpdateRecipe={handleUpdateSavedRecipe}
-          />
-        )}
-        
-        <SavedRecipesModal
-          isOpen={isSavedModalOpen}
-          onClose={() => setIsSavedModalOpen(false)}
-          savedRecipes={savedRecipes}
-          onToggleSave={handleToggleSaveRecipe}
-          onViewRecipe={(recipe) => {
-            setIsSavedModalOpen(false);
-            setSelectedRecipe(recipe);
-          }}
+      {selectedRecipe && (
+        <RecipeModal 
+            recipe={selectedRecipe} 
+            onClose={() => setSelectedRecipe(null)} 
+            isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
+            onToggleSave={handleToggleSaveRecipe}
+            onUpdateRecipe={handleUpdateSavedRecipe}
         />
+      )}
+      
+      <SavedRecipesModal
+        isOpen={isSavedModalOpen}
+        onClose={() => setIsSavedModalOpen(false)}
+        savedRecipes={savedRecipes}
+        onToggleSave={handleToggleSaveRecipe}
+        onViewRecipe={(recipe) => {
+          setIsSavedModalOpen(false);
+          setSelectedRecipe(recipe);
+        }}
+      />
 
-        <SettingsModal
-          isOpen={isSettingsModalOpen}
-          onClose={() => setIsSettingsModalOpen(false)}
-          settings={userSettings}
-          onSave={setUserSettings}
-          initialTab={initialSettingsTab}
-        />
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        settings={userSettings}
+        onSave={setUserSettings}
+        initialTab={initialSettingsTab}
+      />
 
-        <UpgradeModal 
-          isOpen={isUpgradeModalOpen}
-          onClose={() => setIsUpgradeModalOpen(false)}
-        />
-      </div>
-    </AuthProvider>
+      <UpgradeModal 
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+      />
+    </div>
   );
 };
 

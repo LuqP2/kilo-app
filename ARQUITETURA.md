@@ -97,9 +97,4 @@ Considerações finais e boas práticas
 
 ---
 
-Se quiser, faço um follow-up para:
-- adicionar um diagrama simplificado (SVG/PNG) ao repositório;
-- implementar uma função de normalização server-side que mapeie chaves PT→EN automaticamente;
-- esboçar o workflow do GitHub Actions existente (se houver) e sugerir melhorias no CI.
-
 Fim do documento.

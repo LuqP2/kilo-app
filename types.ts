@@ -91,3 +91,19 @@ export enum AppMode {
   DISH_PHOTO,
   LEFTOVERS,
 }
+
+export interface UserProfile {
+  uid: string;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
+  flavorProfile?: FlavorProfile | null;
+  restrictions?: string[];
+  myKitchen?: {
+    appliances: string[];
+    utensils: string[];
+  };
+  // Monetization / plan fields
+  generationsUsed: number;
+  isPro: boolean;
+}

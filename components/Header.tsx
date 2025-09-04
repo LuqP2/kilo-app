@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../AuthContext';
 import { signInWithGoogle, signOutUser } from '../services/authService';
 import InstallPWAButton from './InstallPWAButton';
+import logoUrl from '../src/assets/logo.svg';
 
 interface HeaderProps {
   onShowSaved: () => void;
@@ -21,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
           <div className="flex-1 flex items-center justify-between">
             <div className="flex-shrink-0">
               <a href="/" aria-label="Kilo - Página Inicial">
-                <img className="h-10 w-auto" src="/logo.svg" alt="Kilo Logo" />
+                  <img className="h-10 w-auto" src={logoUrl} alt="Kilo Logo" />
               </a>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">

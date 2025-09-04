@@ -1,4 +1,5 @@
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
+import { auth } from '../firebaseConfig';
 // Frontend no longer initializes GoogleGenAI directly. Calls are proxied to a secure server endpoint.
 const FUNCTIONS_BASE = `${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api`;
 
@@ -75,9 +76,10 @@ export async function identifyIngredients(imageFiles: File[]): Promise<string[]>
     return { data: base64.split(',')[1], mimeType: file.type };
   }));
 
+  const token = await getAuthToken();
   const resp = await fetch(`${FUNCTIONS_BASE}/identifyIngredients`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ images })
   });
 
@@ -101,9 +103,10 @@ export async function identifyIngredients(imageFiles: File[]): Promise<string[]>
 
 export async function classifyImage(imageFile: File): Promise<'INGREDIENTS' | 'DISH'> {
   const base64 = await fileToBase64(imageFile);
+  const token = await getAuthToken();
   const resp = await fetch(`${FUNCTIONS_BASE}/classifyImage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type } })
   });
   if (!resp.ok) {
@@ -122,9 +125,10 @@ export async function classifyImage(imageFile: File): Promise<'INGREDIENTS' | 'D
 
 export async function getRecipeFromImage(imageFile: File, settings: UserSettings): Promise<ApiRecipe | null> {
   const base64 = await fileToBase64(imageFile);
+  const token = await getAuthToken();
   const resp = await fetch(`${FUNCTIONS_BASE}/getRecipeFromImage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type }, settings })
   });
 
@@ -148,9 +152,10 @@ export async function getRecipeFromImage(imageFile: File, settings: UserSettings
 
 export async function suggestLeftoverRecipes(imageFile: File, settings: UserSettings): Promise<ApiRecipe[]> {
   const base64 = await fileToBase64(imageFile);
+  const token = await getAuthToken();
   const resp = await fetch(`${FUNCTIONS_BASE}/suggestLeftoverRecipes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ image: { data: base64.split(',')[1], mimeType: imageFile.type }, settings })
   });
 
@@ -278,9 +283,10 @@ export async function suggestRecipes(ingredients: string[], existingRecipes: Rec
 
   // Proxy to backend function that calls Gemini server-side
   try {
+    const token = await getAuthToken();
     const resp = await fetch(`${FUNCTIONS_BASE}/suggestRecipes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ ingredients, settings, existingRecipeNames: existingRecipes.map(r => r.recipeName), mealTypes })
     });
 
@@ -327,9 +333,10 @@ export async function suggestSingleRecipe(ingredients: string[], recipesToExclud
     const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} ${ingredientsList} Com base nisso, sugira UMA NOVA receita em português do Brasil que seja diferente das seguintes: ${excludedNames}. A receita deve, por padrão, servir 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Responda com um único objeto JSON seguindo o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
     try {
+      const token = await getAuthToken();
       const resp = await fetch(`${FUNCTIONS_BASE}/suggestSingleRecipe`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ ingredients, recipesToExcludeNames: excludedNames, settings, mealTypes })
       });
       if (!resp.ok) {
@@ -354,9 +361,10 @@ export async function suggestMarketModeRecipes(mainIngredients: string[], settin
   const prompt = `O usuário tem os seguintes ingredientes principais: ${mainIngredients.join(', ')}. Crie 3 receitas deliciosas em português do Brasil que usem esses ingredientes como base. As receitas devem, por padrão, servir 2 pessoas. ${recipeDetailInstruction} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} A receita pode e deve incluir outros ingredientes comuns para se tornar um prato completo. Na sua resposta, separe claramente a lista de ingredientes em duas categorias: 'ingredientsYouHave' (baseado na lista fornecida) e 'ingredientsToBuy' (o que falta para comprar). Forneça a resposta como um array JSON de objetos, seguindo o schema. Cada receita também deve incluir um array 'commonQuestions' com 1 pergunta, uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
 
   try {
+    const token = await getAuthToken();
     const resp = await fetch(`${FUNCTIONS_BASE}/suggestMarketModeRecipes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ mainIngredients, settings, mealTypes })
     });
     if (!resp.ok) {
@@ -394,11 +402,12 @@ export async function generateWeeklyPlan(ingredients: string[], duration: number
     `;
 
     try {
-      const resp = await fetch(`${FUNCTIONS_BASE}/generateWeeklyPlan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ingredients, duration, settings, mealTypes })
-      });
+  const token = await getAuthToken();
+  const resp = await fetch(`${FUNCTIONS_BASE}/generateWeeklyPlan`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  body: JSON.stringify({ ingredients, duration, settings, mealTypes })
+  });
       if (!resp.ok) {
         console.error('generateWeeklyPlan failed', await resp.text());
         return null;
@@ -424,9 +433,10 @@ export async function analyzeRecipeForProfile(recipe: Recipe): Promise<string[]>
     `;
 
     try {
+      const token = await getAuthToken();
       const resp = await fetch(`${FUNCTIONS_BASE}/analyzeRecipeForProfile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ recipe })
       });
       if (!resp.ok) {
@@ -457,9 +467,10 @@ export async function getAnswerForRecipeQuestion(recipeName: string, recipeInstr
   `;
 
   try {
+    const token = await getAuthToken();
     const resp = await fetch(`${FUNCTIONS_BASE}/getAnswerForRecipeQuestion`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ recipeName, recipeInstructions, question })
     });
     if (!resp.ok) {
@@ -487,9 +498,10 @@ export async function adjustRecipeServings(ingredientsToAdjust: Ingredient[], or
     `;
 
     try {
+      const token = await getAuthToken();
       const resp = await fetch(`${FUNCTIONS_BASE}/adjustRecipeServings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ ingredientsToAdjust, originalServings, newServings })
       });
       if (!resp.ok) {
@@ -515,9 +527,10 @@ export async function getTechniqueExplanation(techniqueName: string): Promise<st
   `;
 
   try {
+    const token = await getAuthToken();
     const resp = await fetch(`${FUNCTIONS_BASE}/getTechniqueExplanation`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ techniqueName })
     });
     if (!resp.ok) {
@@ -531,5 +544,16 @@ export async function getTechniqueExplanation(techniqueName: string): Promise<st
   } catch (e) {
     console.error('Failed to fetch/parse technique explanation from function', e);
     return ["Não foi possível carregar a explicação da técnica."];
+  }
+}
+
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const user = auth.currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+  } catch (e) {
+    console.error('Failed to get auth token', e);
+    return null;
   }
 }

@@ -1,14 +1,16 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode, startTransition } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "./firebaseConfig.ts";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig.ts";
+import { UserProfile } from './types';
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  userProfile: any;
-  updateUserProfile: (newData: any) => Promise<void>;
+  userProfile: UserProfile | null;
+  updateUserProfile: (newData: Partial<UserProfile>) => Promise<void>;
+  getIdToken?: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,38 +18,61 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   userProfile: null,
   updateUserProfile: async () => {},
+  getIdToken: async () => null,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   // Função para atualizar o perfil do usuário no Firestore e localmente
-  const updateUserProfile = async (newData: any) => {
+  const updateUserProfile = async (newData: Partial<UserProfile>) => {
     if (!currentUser) return;
     try {
       const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, newData);
-      setUserProfile((prev: any) => ({ ...prev, ...newData }));
+      await updateDoc(userRef, newData as any);
+      setUserProfile((prev) => ({ ...(prev as any), ...newData } as UserProfile));
     } catch (e) {
       console.error("Erro ao atualizar perfil do usuário:", e);
     }
   };
 
+  const getIdToken = async (): Promise<string | null> => {
+    if (!auth.currentUser) return null;
+    try {
+      return await auth.currentUser.getIdToken();
+    } catch (e) {
+      console.error('Failed to get ID token', e);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+  console.debug('[Auth] onAuthStateChanged ->', { uid: user ? user.uid : null });
       if (user) {
-        setCurrentUser(user);
-        setLoading(false);
+        console.debug('[Auth] Setting currentUser and loading=false');
+        
+        // Use startTransition to ensure state updates are batched properly
+        startTransition(() => {
+          setCurrentUser(user);
+          setLoading(false);
+        });
+        
+        console.debug('[Auth] State updated - currentUser:', !!user, 'loading:', false);
 
         const userRef = doc(db, "users", user.uid);
         const docSnap = await getDoc(userRef);
 
         if (docSnap.exists()) {
-          setUserProfile(docSnap.data());
+          console.debug('[Auth] Found existing user profile');
+          startTransition(() => {
+            setUserProfile(docSnap.data() as UserProfile);
+          });
         } else {
-          const newProfile = {
+          console.debug('[Auth] Creating new user profile');
+          const newProfile: UserProfile = {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName,
@@ -58,21 +83,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               appliances: [],
               utensils: [],
             },
+            generationsUsed: 0,
+            isPro: false,
           };
-          await setDoc(userRef, newProfile);
-          setUserProfile(newProfile);
+          await setDoc(userRef, newProfile as any);
+          startTransition(() => {
+            setUserProfile(newProfile);
+          });
         }
       } else {
-        setCurrentUser(null);
-        setUserProfile(null);
-        setLoading(false);
+        console.debug('[Auth] No user, setting loading=false');
+        startTransition(() => {
+          setCurrentUser(null);
+          setUserProfile(null);
+          setLoading(false);
+        });
       }
     });
     return unsubscribe;
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userProfile, updateUserProfile }}>
+    <AuthContext.Provider value={{ currentUser, loading, userProfile, updateUserProfile, getIdToken }}>
       {children}
     </AuthContext.Provider>
   );
