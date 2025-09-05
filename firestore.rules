@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para usuários autenticados
+    match /users/{userId} {
+      // Usuários podem ler e escrever apenas seus próprios dados
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Regras para receitas salvas dos usuários
+    match /users/{userId}/savedRecipes/{recipeId} {
+      // Usuários podem ler e escrever apenas suas próprias receitas salvas
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Regras para uso/estatísticas (opcional)
+    match /usage/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Negar acesso a todos os outros documentos
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

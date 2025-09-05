@@ -87,6 +87,8 @@ const SAFETY_INSTRUCTIONS = `
 
 const PROHIBITED_KEYWORDS = ['cachorro','cão','gato','animal de estimação','humano','barata','aranha','escorpião','formiga','mosca','mosquito','rato','pomba','urina','fezes','vômito','terra','sabão','detergente','veneno','bateria','pilha'];
 
+const PROHIBITED_KITCHEN_KEYWORDS = ['arma','pistola','revólver','fuzil','metralhadora','bomba','granada','explosivo','dinamite','tnt','facão','machado','espada','katana','adaga','punhal','navalha','lâmina','cortador de carne','furadeira','marreta','machado','serra elétrica','motosserra','soldador','maçarico','isqueiro','fósforo','cigarro','droga','cocaína','heroína','maconha','crack','ecstasy','lsd','veneno','ácido','soda cáustica','amônia','cloro','gasolina','álcool combustível','thinner','acetona','removedor'];
+
 function validateIngredientsServer(ingredients) {
   for (const ingredient of ingredients) {
     const lowerIngredient = ingredient.toLowerCase();
@@ -97,6 +99,36 @@ function validateIngredientsServer(ingredients) {
         throw new Error(`Ingrediente inválido detectado: "${ingredient}".`);
       }
     }
+  }
+}
+
+function validateKitchenEquipmentServer(equipment) {
+  for (const item of equipment) {
+    const lowerItem = item.toLowerCase();
+    for (const prohibited of PROHIBITED_KITCHEN_KEYWORDS) {
+      const regex = new RegExp(`\\b${prohibited}\\b`, 'i');
+      if (regex.test(lowerItem)) {
+        throw new Error(`Item perigoso detectado em equipamentos de cozinha: "${item}". Por favor, adicione apenas utensílios e eletrodomésticos de cozinha.`);
+      }
+    }
+  }
+}
+
+// Middleware de autenticação
+async function authenticateUser(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Token de autenticação necessário' });
+    }
+    
+    const idToken = authHeader.split('Bearer ')[1];
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    req.user = decodedToken;
+    next();
+  } catch (error) {
+    console.error('Erro na autenticação:', error);
+    return res.status(401).json({ error: 'Token inválido' });
   }
 }
 
@@ -311,9 +343,24 @@ app.post('/analyzeRecipeForProfile', async (req, res) => {
 app.post('/adjustRecipeServings', async (req, res) => {
   try {
     const { ingredientsToAdjust, originalServings, newServings } = req.body;
-    const ingredientsString = ingredientsToAdjust.map(ing => `${ing.quantity} ${ing.unit || ''} ${ing.name}`).join(', ');
-    const prompt = `A seguinte lista de ingredientes é para uma receita que serve ${originalServings} pessoas: ${ingredientsString}. Recalcule para ${newServings} pessoas. Responda APENAS com um array JSON de objetos de ingredientes.`;
-    const apiKey = functions.config().gemini?.api_key;
+    
+    // Convert ingredients to string format for the prompt
+    const ingredientsString = ingredientsToAdjust.map(ing => {
+      // If it's already a string, use it directly
+      if (typeof ing === 'string') {
+        return ing;
+      }
+      // If it's an object but name contains the full ingredient, use name
+      if (ing.name && (ing.name.includes('g ') || ing.name.includes('colher') || ing.name.includes('xícara') || ing.name.includes('unidade'))) {
+        return ing.name;
+      }
+      // Otherwise, construct from parts
+      return `${ing.quantity || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
+    }).join(', ');
+    
+    const prompt = `A seguinte lista de ingredientes é para uma receita que serve ${originalServings} pessoas: ${ingredientsString}. Recalcule as quantidades para ${newServings} pessoas. Responda APENAS com um array JSON de strings, onde cada string é um ingrediente completo com sua quantidade ajustada (exemplo: ["200g carne moída", "1/2 cebola média"]).`;
+    
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('API Key for Gemini is not configured.');
       return res.status(500).json({ error: 'API Key not configured.' });
@@ -332,7 +379,7 @@ app.post('/getTechniqueExplanation', async (req, res) => {
   try {
     const { techniqueName } = req.body;
     const prompt = `Explique a técnica culinária "${techniqueName}" em português do Brasil, em um formato de passo a passo simples. A resposta DEVE ser um array JSON de strings.`;
-    const apiKey = functions.config().gemini?.api_key;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('API Key for Gemini is not configured.');
       return res.status(500).json({ error: 'API Key not configured.' });
@@ -370,5 +417,38 @@ app.post('/getAnswerForRecipeQuestion', async (req, res) => {
 
 // Generic passthrough endpoint for getRecipeFromImage / suggestLeftoverRecipes etc.
 // Frontend should send the prompt + schema or use one of the specific endpoints above.
+
+app.post('/updateUserProfile', authenticateUser, async (req, res) => {
+  try {
+    const { profileData } = req.body;
+    const userId = req.user.uid;
+
+    if (!profileData) {
+      return res.status(400).json({ error: 'Dados do perfil são obrigatórios' });
+    }
+
+    // Validar equipamentos de cozinha se estiverem sendo atualizados
+    if (profileData.myKitchen) {
+      if (profileData.myKitchen.appliances) {
+        validateKitchenEquipmentServer(profileData.myKitchen.appliances);
+      }
+      if (profileData.myKitchen.utensils) {
+        validateKitchenEquipmentServer(profileData.myKitchen.utensils);
+      }
+    }
+
+    // Atualizar o perfil no Firestore
+    const userRef = admin.firestore().collection('users').doc(userId);
+    await userRef.update(profileData);
+
+    return res.json({ success: true, message: 'Perfil atualizado com sucesso' });
+  } catch (e) {
+    console.error('Erro ao atualizar perfil:', e);
+    if (e.message.includes('Item perigoso detectado')) {
+      return res.status(400).json({ error: e.message });
+    }
+    return res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
 
 exports.api = functions.https.onRequest(app);

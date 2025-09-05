@@ -30,11 +30,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateUserProfile = async (newData: Partial<UserProfile>) => {
     if (!currentUser) return;
     try {
-      const userRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userRef, newData as any);
+      // Enviar dados para validação no backend
+      const token = await currentUser.getIdToken();
+      const response = await fetch(`${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api/updateUserProfile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ profileData: newData })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao atualizar perfil');
+      }
+
+      // Se passou na validação, atualizar estado local
       setUserProfile((prev) => ({ ...(prev as any), ...newData } as UserProfile));
     } catch (e) {
       console.error("Erro ao atualizar perfil do usuário:", e);
+      throw e; // Re-throw para que o componente possa tratar o erro
     }
   };
 

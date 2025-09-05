@@ -88,6 +88,94 @@ Considerações finais e boas práticas
 
 ---
 
+## 6. Funcionalidades do Usuário
+
+###  Funcionalidades de Upload e Análise
+1. **Upload de fotos de ingredientes** - Fotografar ou selecionar imagens dos ingredientes disponíveis
+2. **Upload de fotos de pratos** - Fotografar pratos para obter receitas similares
+3. **Upload de fotos de sobras** - Fotografar restos de comida para sugestões de aproveitamento
+4. **Identificação automática de ingredientes** - IA analisa as imagens e lista os ingredientes encontrados
+5. **Classificação automática de imagens** - Sistema diferencia entre ingredientes e pratos prontos
+
+###  Entrada Manual de Dados
+6. **Entrada manual de ingredientes** - Digitar ingredientes quando não há fotos
+7. **Seleção de ingredientes** - Escolher quais ingredientes usar das listas identificadas
+8. **Adição de ingredientes extras** - Incluir ingredientes não detectados nas fotos
+
+###  Geração de Receitas
+9. **Modo "Use o que tenho"** - Receitas usando apenas ingredientes disponíveis
+10. **Modo "Ida ao mercado"** - Receitas que incluem ingredientes para comprar
+11. **Geração de receitas por tipo de refeição** - Café da manhã, almoço, jantar, lanche, sobremesa, acompanhamento
+12. **Regeneração de receitas** - Gerar novas sugestões com os mesmos ingredientes
+13. **Buscar mais receitas** - Expandir a lista de sugestões
+14. **Substituição individual de receitas** - Trocar uma receita específica por outra nova
+15. **Receitas para aproveitamento de sobras** - Sugestões específicas para restos de comida
+
+###  Planejamento Semanal
+16. **Geração de plano semanal** - Planos de 3, 5 ou 7 dias
+17. **Seleção de tipos de refeição para planos** - Escolher quais refeições incluir no planejamento
+18. **Lista de compras automática** - Gerada automaticamente com base no plano semanal
+
+###  Gerenciamento de Receitas
+19. **Salvar receitas favoritas** - Marcar receitas para acesso posterior
+20. **Visualizar receitas salvas** - Modal com todas as receitas guardadas
+21. **Remover receitas salvas** - Excluir receitas da lista de favoritos
+22. **Visualização detalhada de receitas** - Modal expandido com informações completas
+23. **Edição de receitas salvas** - Modificar receitas já salvas
+
+###  Configurações Pessoais - Aba Preferências
+24. **Perfil de sabor** - Definir cozinhas preferidas (Brasileira, Italiana, Mexicana, etc.)
+25. **Nível de picância** - Escolher entre suave, médio ou picante
+26. **Modo Fit** - Priorizar receitas mais saudáveis e nutritivas
+27. **Restrições alimentares** - Vegetariano, vegano, sem glúten, sem lactose
+28. **Alergias** - Lista personalizada de ingredientes a evitar
+
+###  Configurações Pessoais - Minha Cozinha
+29. **Eletrodomésticos principais** - Airfryer, panela de pressão, micro-ondas, liquidificador, batedeira, forno
+30. **Utensílios comuns** - Frigideira de ferro, panela wok, mixer de mão, processador, formas de bolo, balança
+31. **Equipamentos personalizados** - Adicionar outros equipamentos não listados
+32. **Itens básicos da despensa** - Definir temperos e ingredientes sempre disponíveis
+33. **Sugestões de despensa** - Sistema sugere itens comuns para adicionar
+
+###  Autenticação e Perfil
+34. **Login com Google** - Acesso via conta Google
+35. **Logout** - Sair da conta
+36. **Perfil de usuário** - Dados salvos na nuvem (Firebase)
+37. **Sincronização entre dispositivos** - Dados acessíveis em qualquer dispositivo
+
+###  Sistema de Planos
+38. **Plano gratuito** - Limite de gerações diárias
+39. **Plano PRO** - Uso ilimitado
+40. **Contador de uso** - Visualizar gerações restantes
+41. **Modal de upgrade** - Opção para evoluir para PRO
+
+###  Funcionalidades Interativas de Receitas
+42. **Filtros de esforço** - Rápido (-30 min), Uma Panela Só, Sem Forno
+43. **Ajuste de porções** - Calcular ingredientes para diferentes quantidades
+44. **Perguntas sobre receitas** - Sistema de Q&A sobre preparos específicos
+45. **Explicação de técnicas** - Detalhamento de termos culinários
+46. **Análise de perfil da receita** - Sistema aprende com receitas salvas
+
+###  Progressive Web App (PWA)
+47. **Instalação como app** - Botão para instalar no dispositivo
+48. **Funcionamento offline** - Acesso básico sem internet
+49. **Notificações push** - Alertas e lembretes (quando implementado)
+
+###  Segurança e Validação
+50. **Validação de ingredientes** - Sistema bloqueia ingredientes perigosos ou impróprios
+51. **Validação de equipamentos** - Impede adição de itens perigosos na cozinha
+52. **Filtros de conteúdo** - IA treinada para gerar apenas conteúdo culinário seguro
+
+###  Funcionalidades Especiais
+53. **Banner de perfil de sabor** - Sugestões para melhorar personalização
+54. **Mensagens de região bloqueada** - Controle de acesso geográfico
+55. **Sistema de cache** - Reduz uso da API reutilizando resultados similares
+56. **Tratamento de erros** - Mensagens informativas para problemas de conexão
+
+**Total: 56 funcionalidades principais** que o usuário pode acessar e utilizar no app Kilo!
+
+---
+
 ## Arquivos de referência (onde olhar primeiro)
 - `App.tsx` — entrada e orquestração do frontend
 - `index.tsx` — bootstrap do React e registro do service worker

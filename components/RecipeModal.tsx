@@ -21,7 +21,13 @@ interface Timer {
     isRunning: boolean;
 }
 
-const formatIngredient = (ing: Ingredient): string => {
+const formatIngredient = (ing: Ingredient | string): string => {
+    // Se é uma string, retorna diretamente
+    if (typeof ing === 'string') {
+        return ing;
+    }
+    
+    // Se é um objeto, processa as propriedades
     const { name, quantity, unit } = ing;
 
     const formattedName = name?.trim() || '';
@@ -50,7 +56,71 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
   const [shoppingListChecked, setShoppingListChecked] = useState<string[]>([]);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editedRecipe, setEditedRecipe] = useState<Recipe>(initialRecipe);
+  const [editedRecipe, setEditedRecipe] = useState<Recipe>(() => {
+    // Helper function to convert string ingredients to proper objects
+    const parseIngredientString = (ingredientStr: string): Ingredient => {
+      // Try to extract quantity, unit, and name from string like "500g carne moída"
+      const match = ingredientStr.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]*)\s+(.+)$/) ||
+                   ingredientStr.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/) ||
+                   ingredientStr.match(/^(.+)$/);
+      
+      if (match) {
+        if (match.length === 4) {
+          // Has quantity, unit, and name
+          return {
+            quantity: match[1],
+            unit: match[2] || '',
+            name: match[3]
+          };
+        } else if (match.length === 3) {
+          // Has quantity and name, no unit
+          return {
+            quantity: match[1],
+            unit: '',
+            name: match[2]
+          };
+        } else {
+          // Just name
+          return {
+            quantity: '',
+            unit: '',
+            name: match[1]
+          };
+        }
+      }
+      
+      return {
+        quantity: '',
+        unit: '',
+        name: ingredientStr
+      };
+    };
+
+    // Convert ingredients to proper format
+    const convertIngredients = (ingredients: any[]): Ingredient[] => {
+      if (!ingredients) return [];
+      return ingredients.map(ing => {
+        if (typeof ing === 'string') {
+          return parseIngredientString(ing);
+        }
+        return ing; // Already an object
+      });
+    };
+
+    return {
+      ...initialRecipe,
+      ingredientsNeeded: convertIngredients(initialRecipe.ingredientsNeeded || []),
+      ingredientsYouHave: convertIngredients(initialRecipe.ingredientsYouHave || []),
+      ingredientsToBuy: convertIngredients(initialRecipe.ingredientsToBuy || []),
+      howToPrepare: Array.isArray(initialRecipe.howToPrepare) 
+        ? initialRecipe.howToPrepare 
+        : String(initialRecipe.howToPrepare)
+            .split('\n')
+            .flatMap(line => line.split(/\s*(?=[1-9]\d*\.\s)/))
+            .map(step => step.trim().replace(/^[1-9]\d*\.\s*/, ''))
+            .filter(step => step.trim() !== '')
+    };
+  });
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
@@ -82,6 +152,14 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     setExpandedQuestion(null); // Reset questions when recipe changes
     setAnswers({});
     setActiveTechnique(null);
+    
+    // Debug: verificar dados da receita
+    console.log('RecipeModal - Recipe data:', {
+      recipeName: initialRecipe.recipeName,
+      ingredientsNeeded: initialRecipe.ingredientsNeeded,
+      ingredientsType: typeof initialRecipe.ingredientsNeeded?.[0],
+      firstIngredient: initialRecipe.ingredientsNeeded?.[0]
+    });
   }, [initialRecipe]);
 
   // Keep the input in sync with the recipe state from the prop or API updates
@@ -275,11 +353,11 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
   
   const renderStepContent = (step: string) => {
     // Sort techniques by length descending to match longer phrases first
-    const sortedTechniques = recipe.techniques?.sort((a, b) => b.term.length - a.term.length) || [];
+    const sortedTechniques = (recipe.techniques || []).sort((a, b) => b.term.length - a.term.length);
 
     if (sortedTechniques.length === 0) {
       // Fallback to only timer logic if no techniques are present
-      const parts: (string | JSX.Element)[] = [];
+      const parts: (string | React.ReactElement)[] = [];
       let lastIndex = 0;
       let match;
       while ((match = timeRegex.exec(step)) !== null) {
@@ -294,7 +372,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
         lastIndex = match.index + match[0].length;
       }
       parts.push(step.slice(lastIndex));
-      return <p className="ml-3 leading-relaxed">{parts}</p>;
+      return <span className="leading-relaxed">{parts}</span>;
     }
     
     const techniqueTerms = sortedTechniques.map(t => t.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
@@ -303,8 +381,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     const parts = step.split(allTermsRegex);
 
     return (
-        <p className="ml-3 leading-relaxed">
-            {parts.map((part, index) => {
+        <span className="leading-relaxed">{parts.map((part, index) => {
                 const technique = sortedTechniques.find(t => t.term.toLowerCase() === part.toLowerCase());
                 if (technique) {
                     return (
@@ -319,7 +396,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                 }
 
                 // If not a technique, process for timers
-                const timerParts: (string | JSX.Element)[] = [];
+                const timerParts: (string | React.ReactElement)[] = [];
                 let lastIndex = 0;
                 let match;
                 // Important: create a new regex instance for each part as the global flag is stateful
@@ -343,7 +420,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                 
                 return <React.Fragment key={`${index}-text`}>{timerParts}</React.Fragment>;
             })}
-        </p>
+        </span>
     );
   };
 
@@ -539,28 +616,31 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                         <>
                             <div className="mt-4">
                                 <h5 className="font-semibold text-gray-800 flex items-center gap-2"><span role="img" aria-label="check mark">✅</span> Você já tem:</h5>
-                                <ul className="mt-2 space-y-2">{recipe.ingredientsYouHave?.map((ing, i) => (<li key={i} className="flex items-start"><span className="text-orange-500 mr-3 mt-1 flex-shrink-0">&#8226;</span><span className="text-gray-700 capitalize">{formatIngredient(ing)}</span></li>))}</ul>
+                                <ul className="mt-2 space-y-2">{(recipe.ingredientsYouHave || []).map((ing, i) => (<li key={i} className="flex items-start"><span className="text-orange-500 mr-3 mt-1 flex-shrink-0">&#8226;</span><span className="text-gray-700 capitalize">{formatIngredient(ing)}</span></li>))}</ul>
                             </div>
                             <div className="mt-6">
                                 <h5 className="font-semibold text-gray-800 flex items-center gap-2"><span role="img" aria-label="shopping cart">🛒</span> Lista de Compras:</h5>
-                                <ul className="mt-2 space-y-2">{recipe.ingredientsToBuy?.map((ing, i) => { const isChecked = shoppingListChecked.includes(ing.name); return ( <li key={i}><label className="flex items-center cursor-pointer"><input type="checkbox" checked={isChecked} onChange={() => handleToggleShoppingItem(ing.name)} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500" /><span className={`ml-3 text-gray-700 capitalize transition-colors ${isChecked ? 'line-through text-gray-400' : ''}`}>{formatIngredient(ing)}</span></label></li>)})}</ul>
+                                <ul className="mt-2 space-y-2">{(recipe.ingredientsToBuy || []).map((ing, i) => { const isChecked = shoppingListChecked.includes(ing.name); return ( <li key={i}><label className="flex items-center cursor-pointer"><input type="checkbox" checked={isChecked} onChange={() => handleToggleShoppingItem(ing.name)} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500" /><span className={`ml-3 text-gray-700 capitalize transition-colors ${isChecked ? 'line-through text-gray-400' : ''}`}>{formatIngredient(ing)}</span></label></li>)})}</ul>
                             </div>
                         </>
                     ) : (
                         <ul className="mt-4 space-y-2">
-                          {(isEditing ? editedRecipe.ingredientsNeeded : recipe.ingredientsNeeded)?.map((ing, i) => (
-                          <li key={i} className="flex items-center gap-2">
+                          {((isEditing ? editedRecipe.ingredientsNeeded : recipe.ingredientsNeeded) || []).map((ing, i) => (
+                          <li key={i} className="flex items-start gap-2">
                             {isEditing ? (
-                              <>
+                              <div className="flex items-center gap-2 w-full">
                                 <input type="text" placeholder="Qtd" value={ing.quantity} onChange={(e) => handleIngredientChange(i, 'quantity', e.target.value, 'ingredientsNeeded')} className="w-16 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
                                 <input type="text" placeholder="Unid." value={ing.unit} onChange={(e) => handleIngredientChange(i, 'unit', e.target.value, 'ingredientsNeeded')} className="w-24 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
                                 <input type="text" placeholder="Nome" value={ing.name} onChange={(e) => handleIngredientChange(i, 'name', e.target.value, 'ingredientsNeeded')} className="flex-grow p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
                                 <button onClick={() => handleRemoveIngredient(i, 'ingredientsNeeded')} className="flex-shrink-0 h-8 w-8 rounded-full inline-flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600" aria-label={`Remover ingrediente`}>
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
-                              </>
+                              </div>
                             ) : (
-                              <><span className="text-orange-500 mr-3 mt-1 flex-shrink-0">&#8226;</span><span className="text-gray-700 capitalize">{formatIngredient(ing)}</span></>
+                              <>
+                                <span className="text-orange-500 mr-2 mt-1 flex-shrink-0">•</span>
+                                <span className="text-gray-700 capitalize">{formatIngredient(ing)}</span>
+                              </>
                             )}
                           </li>
                           ))}
@@ -576,21 +656,28 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                         {!isEditing && <button onClick={() => setIsKitchenMode(true)} className="px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700">Iniciar Modo Cozinha</button>}
                     </div>
                     <div className="mt-3 space-y-4 text-gray-700">
-                        {(isEditing ? editedRecipe.howToPrepare : preparationSteps).map((step, index) => (
-                            <div key={index} className="flex items-center gap-3">
+                        {(() => {
+                            const steps = isEditing 
+                                ? (Array.isArray(editedRecipe.howToPrepare) ? editedRecipe.howToPrepare : [])
+                                : (Array.isArray(preparationSteps) ? preparationSteps : []);
+                            return steps.map((step, index) => (
+                            <div key={index} className="flex items-start gap-3">
                                 <div className="flex-shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-orange-100 text-orange-600 font-bold text-sm">{index + 1}</div>
                                 {isEditing ? (
-                                    <>
-                                        <textarea value={step} onChange={(e) => handleStepChange(index, e.target.value)} rows={2} className="flex-grow p-1 border border-slate-300 rounded w-full resize-none bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                    <div className="flex items-center gap-2 flex-grow">
+                                        <textarea value={step} onChange={(e) => handleStepChange(index, e.target.value)} rows={2} className="flex-grow p-2 border border-slate-300 rounded w-full resize-none bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
                                         <button onClick={() => handleRemoveStep(index)} className="flex-shrink-0 h-8 w-8 rounded-full inline-flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600" aria-label={`Remover passo ${index + 1}`}>
                                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                         </button>
-                                    </>
+                                    </div>
                                 ) : (
-                                    renderStepContent(step)
+                                    <div className="flex-grow">
+                                        {renderStepContent(step)}
+                                    </div>
                                 )}
                             </div>
-                        ))}
+                        ));
+                        })()}
                          {isEditing && <button onClick={handleAddStep} className="mt-2 text-sm text-orange-600 font-semibold">+ Adicionar Passo</button>}
                     </div>
                 </div>
@@ -600,7 +687,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                   <div className="mt-8 pt-6 border-t border-slate-200">
                     <h4 className="text-lg font-semibold text-gray-800">Dúvidas Comuns</h4>
                     <div className="mt-3 space-y-2">
-                      {recipe.commonQuestions.map((question, index) => (
+                      {(recipe.commonQuestions || []).map((question, index) => (
                         <div key={index} className="border border-slate-200 rounded-lg overflow-hidden">
                           <button
                             onClick={() => handleQuestionToggle(question)}

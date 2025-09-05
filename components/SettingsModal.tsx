@@ -38,10 +38,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   const [activeTab, setActiveTab] = useState(initialTab);
   const [customEquipment, setCustomEquipment] = useState('');
   const [customPantryStaple, setCustomPantryStaple] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setCurrentSettings(settings);
     setActiveTab(initialTab);
+    setSaveError(null); // Limpa erro ao reabrir modal
   }, [settings, isOpen, initialTab]);
 
   useEffect(() => {
@@ -125,9 +128,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
     }
   };
 
-  const handleSave = () => {
-    onSave(currentSettings);
-    onClose();
+  const handleSave = async () => {
+    setSaveError(null);
+    setIsSaving(true);
+    
+    try {
+      await onSave(currentSettings);
+      onClose();
+    } catch (error: any) {
+      console.error('Erro ao salvar configurações:', error);
+      setSaveError(error.message || 'Erro ao salvar as configurações. Tente novamente.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!isOpen) {
@@ -351,13 +364,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
             )}
         </div>
         
-        <div className="p-6 bg-slate-50 border-t border-slate-200 text-right flex-shrink-0">
-             <button
+        <div className="p-6 bg-slate-50 border-t border-slate-200 flex-shrink-0">
+          {saveError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-800">{saveError}</p>
+            </div>
+          )}
+          <div className="text-right">
+            <button
               onClick={handleSave}
-              className="inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              disabled={isSaving}
+              className="inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Salvar
+              {isSaving ? 'Salvando...' : 'Salvar'}
             </button>
+          </div>
         </div>
       </div>
     </div>

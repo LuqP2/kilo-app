@@ -1,7 +1,11 @@
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
 import { auth } from '../firebaseConfig';
 // Frontend no longer initializes GoogleGenAI directly. Calls are proxied to a secure server endpoint.
-const FUNCTIONS_BASE = `${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api`;
+// Use local emulator if in development, otherwise use production
+const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
+const FUNCTIONS_BASE = isDevelopment 
+  ? 'http://127.0.0.1:5001/kilo-47587/us-central1/api'
+  : `${import.meta.env.VITE_FUNCTIONS_BASE || ''}/api`;
 
 
 // The recipe object returned from the API, without the client-side ID

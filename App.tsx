@@ -354,7 +354,7 @@ const App: React.FC = () => {
         handleApiError(e);
         setAppState(AppState.IDLE);
     }
-  }, [userSettings, startInitialSearch, updateUsageCount]);
+  }, [userSettings, startInitialSearch, updateUsageCount, userProfile]);
 
   const handleLeftoversImageUpload = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
@@ -396,7 +396,7 @@ const App: React.FC = () => {
         handleApiError(e);
         setAppState(AppState.IDLE);
     }
-  }, [userSettings, updateUsageCount]);
+  }, [userSettings, updateUsageCount, userProfile]);
 
   const handleManualSubmit = useCallback(async () => {
     if (manualIngredients.length === 0) return;
@@ -586,6 +586,31 @@ const App: React.FC = () => {
   const handleDismissFlavorProfilePrompt = () => {
     setUserSettings(prev => ({...prev, flavorProfilePromptDismissed: true}));
   };
+
+  const handleSaveSettings = useCallback(async (newSettings: UserSettings) => {
+    try {
+      // Salva no estado local e localStorage primeiro
+      setUserSettings(newSettings);
+      
+      // Se há equipamentos de cozinha, atualiza o perfil do usuário com validação
+      if (newSettings.kitchenEquipment && newSettings.kitchenEquipment.length > 0) {
+        await updateUserProfile({
+          myKitchen: {
+            appliances: newSettings.kitchenEquipment.filter(item => 
+              ['Airfryer', 'Panela de Pressão', 'Micro-ondas', 'Liquidificador', 'Batedeira', 'Forno'].includes(item)
+            ),
+            utensils: newSettings.kitchenEquipment.filter(item => 
+              !['Airfryer', 'Panela de Pressão', 'Micro-ondas', 'Liquidificador', 'Batedeira', 'Forno'].includes(item)
+            )
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('Erro ao salvar configurações:', error);
+      // Re-throw para o SettingsModal tratar o erro
+      throw new Error(error.message || 'Erro ao salvar as configurações');
+    }
+  }, [updateUserProfile]);
 
   const hasAccess = userProfile?.isPro || (FREE_PLAN_LIMIT - (userProfile?.generationsUsed || 0)) > 0;
 
@@ -835,7 +860,7 @@ const App: React.FC = () => {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         settings={userSettings}
-        onSave={setUserSettings}
+        onSave={handleSaveSettings}
         initialTab={initialSettingsTab}
       />
 
