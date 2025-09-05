@@ -8,12 +8,11 @@ interface HeaderProps {
   onShowSaved: () => void;
   savedRecipesCount: number;
   onShowSettings: () => void;
-  remainingGenerations: number;
-  userPlan: 'free' | 'pro';
 }
 
-const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowSettings, remainingGenerations, userPlan }) => {
-  const { currentUser } = useAuth();
+const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowSettings }) => {
+  const { currentUser, userProfile } = useAuth();
+  const remainingGenerations = FREE_PLAN_LIMIT - (userProfile?.generationsUsed || 0);
 
   return (
     <header className="bg-white/80 backdrop-blur-lg sticky top-0 z-40 border-b border-slate-200">
@@ -36,15 +35,14 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
                 </button>
               ) : (
                 <>
-                  {userPlan === 'free' && (
+                  {userProfile?.isPro ? (
+                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-full text-green-700 bg-green-100 border border-green-200">
+                      <span>Kilo PRO</span>
+                    </div>
+                  ) : (
                     <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-full text-orange-700 bg-orange-100 border border-orange-200">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" /></svg>
                       <span>{remainingGenerations} <span className="hidden lg:inline">gerações restantes</span></span>
-                    </div>
-                  )}
-                  {userPlan === 'pro' && (
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-full text-green-700 bg-green-100 border border-green-200">
-                      <span>Kilo PRO</span>
                     </div>
                   )}
                   <button

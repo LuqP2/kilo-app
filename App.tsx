@@ -587,7 +587,7 @@ const App: React.FC = () => {
     setUserSettings(prev => ({...prev, flavorProfilePromptDismissed: true}));
   };
 
-  const hasGenerationsLeft = remainingGenerations > 0;
+  const hasAccess = userProfile?.isPro || (FREE_PLAN_LIMIT - (userProfile?.generationsUsed || 0)) > 0;
 
   const renderContent = () => {
     console.debug('[App] renderContent called', { loading, currentUser: !!currentUser, authTimeoutExpired });
@@ -666,7 +666,7 @@ const App: React.FC = () => {
                   uploadText="Enviar foto da geladeira"
                   uploadSubtext="(ou despensa, até 5 fotos)"
                   icon={ingredientsIcon}
-                  disabled={!hasGenerationsLeft}
+                  disabled={!hasAccess}
                 />
               </div>
 
@@ -680,7 +680,7 @@ const App: React.FC = () => {
                   uploadText="Envie a foto de um prato"
                   uploadSubtext="(1 foto)"
                   icon={dishPhotoIcon}
-                  disabled={!hasGenerationsLeft}
+                  disabled={!hasAccess}
                 />
               </div>
 
@@ -694,7 +694,7 @@ const App: React.FC = () => {
                   uploadText="Envie foto das sobras"
                   uploadSubtext="(1 foto de um prato pronto)"
                   icon={leftoversIcon}
-                  disabled={!hasGenerationsLeft}
+                  disabled={!hasAccess}
                 />
               </div>
               
@@ -727,15 +727,15 @@ const App: React.FC = () => {
                   ingredients={manualIngredients}
                   onAddIngredient={handleAddManualIngredient}
                   onRemoveIngredient={handleRemoveManualIngredient}
-                  disabled={!hasGenerationsLeft}
+                  disabled={!hasAccess}
               />
                <div className="mt-8 text-center">
                   <button
                       onClick={handleManualSubmit}
-                      disabled={manualIngredients.length === 0 || !hasGenerationsLeft}
+                      disabled={manualIngredients.length === 0 || !hasAccess}
                       className="w-full sm:w-auto px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-slate-800 shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                      {!hasGenerationsLeft ? 'Limite diário atingido' : 'Buscar Receitas'}
+                      {!hasAccess ? 'Limite diário atingido' : 'Buscar Receitas'}
                   </button>
               </div>
             </div>
@@ -788,7 +788,7 @@ const App: React.FC = () => {
             effortFilters={effortFilters}
             onEffortFiltersChange={setEffortFilters}
             error={error}
-            hasGenerationsLeft={hasGenerationsLeft}
+            hasGenerationsLeft={hasAccess}
           />
         );
       default:
@@ -802,8 +802,6 @@ const App: React.FC = () => {
         onShowSaved={() => setIsSavedModalOpen(true)} 
         savedRecipesCount={savedRecipes.length}
         onShowSettings={() => handleShowSettings()}
-        remainingGenerations={remainingGenerations}
-        userPlan={userSettings.plan}
       />
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
