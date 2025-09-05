@@ -230,8 +230,15 @@ app.post('/suggestRecipes', async (req, res) => {
     validateIngredientsServer(ingredients);
     const personalizationPrompt = buildPersonalizationPrompt(settings || {});
     const mealTypePrompt = buildMealTypePrompt(mealTypes || []);
-    const pantryPrompt = settings && settings.pantryStaples && settings.pantryStaples.length > 0
-      ? `Você pode assumir que o usuário tem os seguintes itens básicos: ${settings.pantryStaples.join(', ')}, e água.`
+    // Exclude basic ingredients for dessert recipes
+    const basicIngredients = ['cebola', 'alho', 'sal', 'água', 'agua'];
+    let pantryStaplesFiltered = settings && settings.pantryStaples ? [...settings.pantryStaples] : [];
+    const isDessert = (mealTypes || []).some(type => typeof type === 'string' && type.toLowerCase().includes('sobremesa'));
+    if (isDessert) {
+      pantryStaplesFiltered = pantryStaplesFiltered.filter(item => !basicIngredients.some(basic => item.toLowerCase().includes(basic)));
+    }
+    const pantryPrompt = pantryStaplesFiltered.length > 0
+      ? `Você pode assumir que o usuário tem os seguintes itens básicos: ${pantryStaplesFiltered.join(', ')}${isDessert ? '' : ', e água.'}`
       : `Assuma que o usuário tem APENAS água.`;
   const basePrompt = `${SAFETY_INSTRUCTIONS}Sua tarefa é criar receitas usando estrita e exclusivamente os seguintes ingredientes: ${ingredients.join(', ')}. ${pantryPrompt} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça 5 receitas em um array JSON. Cada objeto RECEITA DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded, howToPrepare, servings, calories, totalTime, tags. Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
     const apiKey = process.env.GEMINI_API_KEY;
@@ -257,7 +264,17 @@ app.post('/suggestSingleRecipe', async (req, res) => {
     validateIngredientsServer(ingredients);
     const personalizationPrompt = buildPersonalizationPrompt(settings || {});
     const mealTypePrompt = buildMealTypePrompt(mealTypes || []);
-  const prompt = `${SAFETY_INSTRUCTIONS}Sua prioridade é combinar ingredientes: ${ingredients.join(', ')}. ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça UMA receita diferente das seguintes: ${recipesToExcludeNames || ''}. Responda com um objeto JSON. Esse objeto DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded, howToPrepare, servings, calories, totalTime, tags. Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
+    // Exclude basic ingredients for dessert recipes
+    const basicIngredients = ['cebola', 'alho', 'sal', 'água', 'agua'];
+    let pantryStaplesFiltered = settings && settings.pantryStaples ? [...settings.pantryStaples] : [];
+    const isDessert = (mealTypes || []).some(type => typeof type === 'string' && type.toLowerCase().includes('sobremesa'));
+    if (isDessert) {
+      pantryStaplesFiltered = pantryStaplesFiltered.filter(item => !basicIngredients.some(basic => item.toLowerCase().includes(basic)));
+    }
+    const pantryPrompt = pantryStaplesFiltered.length > 0
+      ? `Você pode assumir que o usuário tem os seguintes itens básicos: ${pantryStaplesFiltered.join(', ')}${isDessert ? '' : ', e água.'}`
+      : `Assuma que o usuário tem APENAS água.`;
+  const prompt = `${SAFETY_INSTRUCTIONS}Sua prioridade é combinar ingredientes: ${ingredients.join(', ')}. ${pantryPrompt} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça UMA receita diferente das seguintes: ${recipesToExcludeNames || ''}. Responda com um objeto JSON. Esse objeto DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded, howToPrepare, servings, calories, totalTime, tags. Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error('GEMINI_API_KEY environment variable not set.');
