@@ -97,9 +97,9 @@ const App: React.FC = () => {
   const [utensils, setUtensils] = useState<string[]>([]);
 
   const updateUsageCount = useCallback(() => {
-    const remaining = getRemainingGenerations();
+    const remaining = getRemainingGenerations(userProfile?.isPro || false);
     setRemainingGenerations(remaining);
-  }, []);
+  }, [userProfile]);
 
   // Diagnostic: trace appState transitions and important triggers
   useEffect(() => {
@@ -306,7 +306,7 @@ const App: React.FC = () => {
 
     // Centralized usage check: only decrement on the three primary generation actions
     try {
-      checkAndIncrementUsage();
+      checkAndIncrementUsage(userProfile?.isPro || false);
     } catch (e) {
       handleApiError(e);
       return;
@@ -364,7 +364,7 @@ const App: React.FC = () => {
 
     // Centralized usage check
     try {
-      checkAndIncrementUsage();
+      checkAndIncrementUsage(userProfile?.isPro || false);
     } catch (e) {
       handleApiError(e);
       return;
@@ -405,14 +405,14 @@ const App: React.FC = () => {
     setAppMode(AppMode.INGREDIENTS);
     // Centralized usage check
     try {
-      checkAndIncrementUsage();
+      checkAndIncrementUsage(userProfile?.isPro || false);
     } catch (e) {
       handleApiError(e);
       return;
     }
 
     await startInitialSearch(manualIngredients);
-  }, [manualIngredients, startInitialSearch]);
+  }, [manualIngredients, startInitialSearch, userProfile]);
 
 
   const regenerateRecipes = useCallback(async (ingredientsToSearch: string[]) => {

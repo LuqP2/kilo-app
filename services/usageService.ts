@@ -4,16 +4,15 @@ export const FREE_PLAN_LIMIT = 5;
 
 // This function is the single source of truth for current usage stats.
 // It handles reading, validating, and resetting the daily count if needed.
-const getUsageStats = (): { count: number, lastReset: number, plan: 'free' | 'pro' } => {
+const getUsageStats = (): { count: number, lastReset: number } => {
     try {
         const settingsStr = localStorage.getItem('userSettings');
         if (!settingsStr) {
-            return { count: 0, lastReset: Date.now(), plan: 'free' };
+            return { count: 0, lastReset: Date.now() };
         }
 
         const settings: Partial<UserSettings> = JSON.parse(settingsStr);
         const usage = settings.dailyGenerations || { count: 0, lastReset: 0 };
-        const plan = settings.plan || 'free';
 
         const lastResetDate = new Date(usage.lastReset);
         const today = new Date();
@@ -25,14 +24,14 @@ const getUsageStats = (): { count: number, lastReset: number, plan: 'free' | 'pr
             lastResetDate.getDate() !== today.getDate()
         ) {
             // It's a new day, so reset the counter.
-            return { count: 0, lastReset: today.getTime(), plan };
+            return { count: 0, lastReset: today.getTime() };
         }
 
-        return { ...usage, plan };
+        return usage;
     } catch (e) {
         console.error("Failed to read usage from localStorage", e);
         // On failure, default to a safe state (no usage counted).
-        return { count: 0, lastReset: Date.now(), plan: 'free' };
+        return { count: 0, lastReset: Date.now() };
     }
 };
 
@@ -52,13 +51,13 @@ const saveUsage = (usage: { count: number, lastReset: number }): void => {
  * Checks if the user can perform a generation and increments the count.
  * Throws an error if the limit is reached.
  */
-export const checkAndIncrementUsage = (): void => {
-    const { count, lastReset, plan } = getUsageStats();
-
+export const checkAndIncrementUsage = (isPro: boolean): void => {
     // Pro users have no limits.
-    if (plan === 'pro') {
+    if (isPro) {
         return;
     }
+
+    const { count, lastReset } = getUsageStats();
 
     if (count >= FREE_PLAN_LIMIT) {
         throw new Error('LIMIT_REACHED');
@@ -72,11 +71,11 @@ export const checkAndIncrementUsage = (): void => {
 /**
  * Gets the number of remaining generations for the day.
  */
-export const getRemainingGenerations = (): number => {
-    const { count, plan } = getUsageStats();
-    if (plan === 'pro') {
+export const getRemainingGenerations = (isPro: boolean): number => {
+    if (isPro) {
         return Infinity;
     }
+    const { count } = getUsageStats();
     const remaining = FREE_PLAN_LIMIT - count;
     return Math.max(0, remaining); // Ensure it doesn't go below zero.
 }
