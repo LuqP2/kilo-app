@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../AuthContext';
 import { signInWithGoogle, signOutUser } from '../services/authService';
+import { FREE_PLAN_LIMIT } from '../services/usageService';
 import InstallPWAButton from './InstallPWAButton';
 import logoUrl from '../src/assets/logo.svg';
 
