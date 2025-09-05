@@ -132,6 +132,67 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
 
   const { currentUser } = useAuth();
 
+  // Sync editedRecipe when initialRecipe changes
+  useEffect(() => {
+    const parseIngredientString = (ingredientStr: string): Ingredient => {
+      const match = ingredientStr.match(/^(\d+(?:[.,]\d+)?)\s*([a-zA-Z]*)\s+(.+)$/) ||
+                   ingredientStr.match(/^(\d+(?:[.,]\d+)?)\s+(.+)$/) ||
+                   ingredientStr.match(/^(.+)$/);
+      
+      if (match) {
+        if (match.length === 4) {
+          return {
+            quantity: match[1],
+            unit: match[2] || '',
+            name: match[3]
+          };
+        } else if (match.length === 3) {
+          return {
+            quantity: match[1],
+            unit: '',
+            name: match[2]
+          };
+        } else {
+          return {
+            quantity: '',
+            unit: '',
+            name: match[1]
+          };
+        }
+      }
+      
+      return {
+        quantity: '',
+        unit: '',
+        name: ingredientStr
+      };
+    };
+
+    const convertIngredients = (ingredients: any[]): Ingredient[] => {
+      if (!ingredients) return [];
+      return ingredients.map(ing => {
+        if (typeof ing === 'string') {
+          return parseIngredientString(ing);
+        }
+        return ing;
+      });
+    };
+
+    setEditedRecipe({
+      ...initialRecipe,
+      ingredientsNeeded: convertIngredients(initialRecipe.ingredientsNeeded || []),
+      ingredientsYouHave: convertIngredients(initialRecipe.ingredientsYouHave || []),
+      ingredientsToBuy: convertIngredients(initialRecipe.ingredientsToBuy || []),
+      howToPrepare: Array.isArray(initialRecipe.howToPrepare) 
+        ? initialRecipe.howToPrepare 
+        : String(initialRecipe.howToPrepare)
+            .split('\n')
+            .flatMap(line => line.split(/\s*(?=[1-9]\d*\.\s)/))
+            .map(step => step.trim().replace(/^[1-9]\d*\.\s*/, ''))
+            .filter(step => step.trim() !== '')
+    });
+  }, [initialRecipe]);
+
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -262,8 +323,22 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
   };
   const handleIngredientChange = (index: number, field: keyof Ingredient, value: string, listKey: 'ingredientsNeeded' | 'ingredientsYouHave' | 'ingredientsToBuy') => {
     setEditedRecipe(prev => {
-      const newList = [...(prev[listKey] as Ingredient[] || [])];
-      newList[index] = {...newList[index], [field]: value};
+      const list = prev[listKey] as (Ingredient | string)[] || [];
+      const newList = [...list];
+      
+      // Convert string to object if needed
+      if (typeof newList[index] === 'string') {
+        const stringValue = newList[index] as string;
+        newList[index] = {
+          quantity: field === 'quantity' ? value : '',
+          unit: field === 'unit' ? value : '',
+          name: field === 'name' ? value : stringValue
+        };
+      } else {
+        // Update existing object
+        newList[index] = {...(newList[index] as Ingredient), [field]: value};
+      }
+      
       return {...prev, [listKey]: newList};
     });
   };
@@ -625,13 +700,13 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                         </>
                     ) : (
                         <ul className="mt-4 space-y-2">
-                          {((isEditing ? editedRecipe.ingredientsNeeded : recipe.ingredientsNeeded) || []).map((ing, i) => (
+                          {(isEditing ? editedRecipe.ingredientsNeeded : recipe.ingredientsNeeded || []).map((ing, i) => (
                           <li key={i} className="flex items-start gap-2">
                             {isEditing ? (
                               <div className="flex items-center gap-2 w-full">
-                                <input type="text" placeholder="Qtd" value={ing.quantity} onChange={(e) => handleIngredientChange(i, 'quantity', e.target.value, 'ingredientsNeeded')} className="w-16 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
-                                <input type="text" placeholder="Unid." value={ing.unit} onChange={(e) => handleIngredientChange(i, 'unit', e.target.value, 'ingredientsNeeded')} className="w-24 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
-                                <input type="text" placeholder="Nome" value={ing.name} onChange={(e) => handleIngredientChange(i, 'name', e.target.value, 'ingredientsNeeded')} className="flex-grow p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                <input type="text" placeholder="Qtd" value={typeof ing === 'string' ? '' : (ing.quantity || '')} onChange={(e) => handleIngredientChange(i, 'quantity', e.target.value, 'ingredientsNeeded')} className="w-16 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                <input type="text" placeholder="Unid." value={typeof ing === 'string' ? '' : (ing.unit || '')} onChange={(e) => handleIngredientChange(i, 'unit', e.target.value, 'ingredientsNeeded')} className="w-24 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                <input type="text" placeholder="Nome" value={typeof ing === 'string' ? ing : (ing.name || '')} onChange={(e) => handleIngredientChange(i, 'name', e.target.value, 'ingredientsNeeded')} className="flex-grow p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
                                 <button onClick={() => handleRemoveIngredient(i, 'ingredientsNeeded')} className="flex-shrink-0 h-8 w-8 rounded-full inline-flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600" aria-label={`Remover ingrediente`}>
                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
