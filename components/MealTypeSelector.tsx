@@ -23,14 +23,19 @@ const MealTypeSelector: React.FC<MealTypeSelectorProps> = ({ selectedMeals, onCh
             key={meal}
             type="button"
             onClick={() => handleMealChange(meal)}
-            className={`px-5 py-3 text-sm font-medium rounded-full border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4CAF50] ${
+            className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-full border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4CAF50] ${
               isSelected
-                ? 'bg-[#4CAF50] text-white border-[#4CAF50] shadow-md hover:bg-[#45a049] hover:shadow-lg'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
+                ? 'bg-[#4CAF50] text-white border-[#4CAF50] shadow-md'
+                : 'bg-white text-[#374151] border-[#E5E7EB] hover:bg-gray-50'
             }`}
             aria-pressed={isSelected}
           >
-            {meal}
+            {isSelected && (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" />
+              </svg>
+            )}
+            <span className="whitespace-nowrap">{meal}</span>
           </button>
         );
       })}

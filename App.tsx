@@ -711,7 +711,28 @@ const App: React.FC = () => {
 
             {/* Main Camera Card - Destaque */}
             <div className="w-full max-w-md mb-12">
-              <div className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100">
+              {/* Hidden file input for card click */}
+              <input 
+                id="card-file-input" 
+                type="file" 
+                accept="image/*" 
+                capture="environment"
+                multiple 
+                className="hidden" 
+                onChange={(e) => { 
+                  const files = e.target.files ? Array.from(e.target.files) : []; 
+                  if (files.length) handleUnifiedImageUpload(files); 
+                  e.currentTarget.value = ''; 
+                }} 
+              />
+
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => document.getElementById('card-file-input')?.click()}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('card-file-input')?.click(); } }}
+                className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100 hover:bg-orange-50 cursor-pointer"
+              >
                 {/* Large Camera Icon */}
                 <div className="mb-10">
                   <div className="mx-auto w-36 h-36 bg-orange-50 rounded-full flex items-center justify-center shadow-inner">

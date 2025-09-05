@@ -95,6 +95,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     } as unknown as DropzoneOptions )
   });
 
+  // Custom input props for mobile camera access
+  const getCustomInputProps = () => {
+    const baseProps = getInputProps();
+    return {
+      ...baseProps,
+      capture: "environment" as const, // Prioriza câmera traseira
+      accept: "image/*", // Aceita todos os tipos de imagem
+    };
+  };
+
   const defaultIcon = (
     <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M2 3h10v18H2zM12 3h10v9h-10z"/>
@@ -112,7 +122,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     <div className="w-full max-w-2xl mx-auto">
       {customButtonStyle ? (
         <div>
-          <input {...getInputProps()} id="file-input-custom" style={{ display: 'none' }} />
+          <input {...getCustomInputProps()} id="file-input-custom" style={{ display: 'none' }} />
           <button
             onClick={() => !disabled && (document.getElementById('file-input-custom') as HTMLInputElement)?.click()}
             className={customButtonStyle}
@@ -128,7 +138,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             isDragActive ? 'border-orange-500 bg-orange-50 border-2' : ''
           } ${disabled ? 'cursor-not-allowed bg-slate-100 opacity-60' : 'cursor-pointer hover:border-orange-400'}`}
         >
-          <input {...getInputProps()} />
+          <input {...getCustomInputProps()} />
           <div className="text-center">
             {icon || defaultIcon}
             <div className="mt-4 text-sm leading-6 text-slate-600">
