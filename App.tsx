@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT, checkAndIncrementUsage } from './services/usageService';
-import { compressMultipleImages, shouldCompressImage } from './utils/imageUtils';
+import { compressMultipleImages, shouldCompressImage, isLowMemoryDevice, emergencyCompress } from './utils/imageUtils';
 import { AuthProvider, useAuth } from './AuthContext';
 
 import Header from './components/Header';
@@ -75,6 +75,7 @@ const App: React.FC = () => {
   
   const [error, setError] = useState<string | null>(null);
   const [isRegionLockedError, setIsRegionLockedError] = useState(false);
+  const [isMemoryError, setIsMemoryError] = useState(false);
   const [isRegeneratingRecipes, setIsRegeneratingRecipes] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [isFetchingMarketRecipes, setIsFetchingMarketRecipes] = useState(false);
@@ -267,6 +268,9 @@ const App: React.FC = () => {
           setIsRegionLockedError(true);
         } else if (e.message.includes('Ingrediente inválido detectado')) {
           setError(e.message);
+        } else if (e.message.includes('memory') || e.message.includes('memória') || e.message.includes('insuficiência')) {
+          setError('Erro de memória detectado. Tente usar o modo de compressão máxima.');
+          setIsMemoryError(true);
         } else {
           setError('Desculpe, ocorreu um erro. Tente novamente.');
         }
@@ -318,21 +322,44 @@ const App: React.FC = () => {
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
+    setIsMemoryError(false);
 
     try {
       // Compress images to avoid memory issues on mobile devices
       // Large photos from phone cameras (4-8MB) can cause out-of-memory errors
-      // when converted to Base64. This compression reduces size to ~800KB max.
+      // when converted to Base64. This compression reduces size while preserving AI recognition quality.
+      const isLowMemory = isLowMemoryDevice();
+      console.debug(`[App] Device memory level: ${isLowMemory ? 'LOW' : 'NORMAL'}`);
+      
       const filesToProcess = await Promise.all(
         files.map(async (file) => {
-          if (shouldCompressImage(file)) {
+          if (shouldCompressImage(file, isLowMemory ? 400 : 800)) {
             console.debug(`[App] Compressing image: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
-            return await compressMultipleImages([file], {
-              maxWidth: 1920,
-              maxHeight: 1080,
-              quality: 0.8,
-              maxSizeKB: 800
-            }).then(compressed => compressed[0]);
+            
+            try {
+              // Use device-appropriate compression settings
+              const compressionOptions = isLowMemory ? {
+                maxWidth: 1280,
+                maxHeight: 720,
+                quality: 0.75,
+                maxSizeKB: 400,
+                preserveDetails: true // Still maintain quality for AI
+              } : {
+                maxWidth: 1920,
+                maxHeight: 1080,
+                quality: 0.85,
+                maxSizeKB: 800,
+                preserveDetails: true
+              };
+              
+              return await compressMultipleImages([file], compressionOptions)
+                .then(compressed => compressed[0]);
+                
+            } catch (compressionError) {
+              console.warn('[App] Standard compression failed, trying emergency compression:', compressionError);
+              // Fallback to emergency compression for extremely low-memory devices
+              return await emergencyCompress(file);
+            }
           }
           return file;
         })
@@ -395,17 +422,29 @@ const App: React.FC = () => {
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
+    setIsMemoryError(false);
     setAppMode(AppMode.LEFTOVERS);
 
     try {
       // Compress image if needed to prevent mobile memory issues
-      const fileToProcess = shouldCompressImage(file) 
-        ? await compressMultipleImages([file], {
-            maxWidth: 1920,
-            maxHeight: 1080,
-            quality: 0.8,
-            maxSizeKB: 800
-          }).then(compressed => compressed[0])
+      const isLowMemory = isLowMemoryDevice();
+      const maxSizeKB = isLowMemory ? 400 : 800;
+      
+      const fileToProcess = shouldCompressImage(file, maxSizeKB) 
+        ? await (async () => {
+            try {
+              return await compressMultipleImages([file], {
+                maxWidth: isLowMemory ? 1280 : 1920,
+                maxHeight: isLowMemory ? 720 : 1080,
+                quality: isLowMemory ? 0.75 : 0.85,
+                maxSizeKB: maxSizeKB,
+                preserveDetails: true // Maintain quality for AI recognition
+              }).then(compressed => compressed[0]);
+            } catch (compressionError) {
+              console.warn('[App] Standard compression failed for leftovers, trying emergency compression:', compressionError);
+              return await emergencyCompress(file);
+            }
+          })()
         : file;
 
       setImageFiles([fileToProcess]);
