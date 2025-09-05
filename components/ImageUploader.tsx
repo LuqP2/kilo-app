@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useDropzone, FileRejection } from 'react-dropzone';
+import { useDropzone, FileRejection, DropzoneOptions } from 'react-dropzone';
 
 interface ImageUploaderProps {
   onImageUpload: (files: File[]) => void;
@@ -7,8 +7,9 @@ interface ImageUploaderProps {
   maxFiles?: number;
   uploadText?: string;
   uploadSubtext?: string;
-  icon?: JSX.Element;
+  icon?: React.ReactNode;
   disabled?: boolean;
+  customButtonStyle?: string;
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ 
@@ -19,6 +20,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   uploadSubtext = "Até 5 arquivos (PNG, JPG)",
   icon,
   disabled = false,
+  customButtonStyle,
 }) => {
   const [error, setError] = useState<string | null>(null);
 
@@ -81,14 +83,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   }, [onImageUpload, maxFiles, disabled]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/jpeg': [],
-      'image/png': []
-    },
-    multiple: multiple,
-    maxFiles: maxFiles,
-    disabled,
+    // workaround para tipagem do DropzoneOptions
+    ...( {
+      onDrop,
+      accept: {
+        'image/jpeg': ['.jpeg', '.jpg'],
+        'image/png': ['.png']
+      },
+      multiple,
+      maxFiles,
+    } as unknown as DropzoneOptions )
   });
 
   const defaultIcon = (
@@ -106,26 +110,39 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div
-        {...getRootProps()}
-        className={`mt-8 flex justify-center rounded-xl border border-slate-300 bg-white px-6 py-10 transition-colors ${
-          isDragActive ? 'border-orange-500 bg-orange-50 border-2' : ''
-        } ${disabled ? 'cursor-not-allowed bg-slate-100 opacity-60' : 'cursor-pointer hover:border-orange-400'}`}
-      >
-        <input {...getInputProps()} />
-        <div className="text-center">
-          {icon || defaultIcon}
-          <div className="mt-4 text-sm leading-6 text-slate-600">
-            <p>
-                <span className={`font-semibold ${!disabled && 'text-orange-600 hover:text-orange-500'}`}>
-                {disabled ? 'Limite diário atingido' : uploadText}
-                </span>
-                {!disabled && <span className="pl-1">ou clique para selecionar</span>}
-            </p>
-          </div>
-          <p className="text-xs leading-5 text-slate-500">{uploadSubtext}</p>
+      {customButtonStyle ? (
+        <div>
+          <input {...getInputProps()} id="file-input-custom" style={{ display: 'none' }} />
+          <button
+            onClick={() => !disabled && (document.getElementById('file-input-custom') as HTMLInputElement)?.click()}
+            className={customButtonStyle}
+            disabled={disabled}
+          >
+            {uploadText}
+          </button>
         </div>
-      </div>
+      ) : (
+        <div
+          {...getRootProps()}
+          className={`mt-8 flex justify-center rounded-xl border border-slate-300 bg-white px-6 py-10 transition-colors ${
+            isDragActive ? 'border-orange-500 bg-orange-50 border-2' : ''
+          } ${disabled ? 'cursor-not-allowed bg-slate-100 opacity-60' : 'cursor-pointer hover:border-orange-400'}`}
+        >
+          <input {...getInputProps()} />
+          <div className="text-center">
+            {icon || defaultIcon}
+            <div className="mt-4 text-sm leading-6 text-slate-600">
+              <p>
+                  <span className={`font-semibold ${!disabled && 'text-orange-600 hover:text-orange-500'}`}>
+                  {disabled ? 'Limite diário atingido' : uploadText}
+                  </span>
+                  {!disabled && <span className="pl-1">ou clique para selecionar</span>}
+              </p>
+            </div>
+            <p className="text-xs leading-5 text-slate-500">{uploadSubtext}</p>
+          </div>
+        </div>
+      )}
       {error && <p className="mt-2 text-sm text-red-600 text-center">{error}</p>}
     </div>
   );

@@ -431,8 +431,8 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     const sortedTechniques = (recipe.techniques || []).sort((a, b) => b.term.length - a.term.length);
 
     if (sortedTechniques.length === 0) {
-      // Fallback to only timer logic if no techniques are present
-      const parts: (string | React.ReactElement)[] = [];
+  // Fallback to only timer logic se não houver técnicas
+  const parts: React.ReactNode[] = [];
       let lastIndex = 0;
       let match;
       while ((match = timeRegex.exec(step)) !== null) {
@@ -456,47 +456,47 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     const parts = step.split(allTermsRegex);
 
     return (
-        <span className="leading-relaxed">{parts.map((part, index) => {
-                const technique = sortedTechniques.find(t => t.term.toLowerCase() === part.toLowerCase());
-                if (technique) {
-                    return (
-                        <button
-                            key={`${index}-technique`}
-                            onClick={() => handleTechniqueClick(technique)}
-                            className="mx-1 font-semibold underline decoration-orange-400 decoration-2 underline-offset-2 text-orange-600 hover:bg-orange-100 rounded px-1 py-0.5 transition-colors"
-                        >
-                            {part}
-                        </button>
-                    );
-                }
+    <span className="leading-relaxed">{parts.map((part, index) => {
+        const technique = sortedTechniques.find(t => t.term.toLowerCase() === part.toLowerCase());
+        if (technique) {
+          return (
+            <button
+              key={`${index}-technique`}
+              onClick={() => handleTechniqueClick(technique)}
+              className="mx-1 font-semibold underline decoration-orange-400 decoration-2 underline-offset-2 text-orange-600 hover:bg-orange-100 rounded px-1 py-0.5 transition-colors"
+            >
+              {part}
+            </button>
+          );
+        }
 
-                // If not a technique, process for timers
-                const timerParts: (string | React.ReactElement)[] = [];
-                let lastIndex = 0;
-                let match;
-                // Important: create a new regex instance for each part as the global flag is stateful
-                const localTimeRegex = new RegExp(timeRegex);
-                while ((match = localTimeRegex.exec(part)) !== null) {
-                    timerParts.push(part.slice(lastIndex, match.index));
-                    const duration = parseTimeToSeconds(match[1], match[2]);
-                    timerParts.push(
-                        <button
-                            key={`${index}-${match.index}-timer`}
-                            onClick={() => startTimer(duration)}
-                            className="mx-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
-                            {match[0]}
-                        </button>
-                    );
-                    lastIndex = match.index + match[0].length;
-                }
-                timerParts.push(part.slice(lastIndex));
-                
-                return <React.Fragment key={`${index}-text`}>{timerParts}</React.Fragment>;
-            })}
-        </span>
-    );
+        // If not a technique, process for timers
+        const timerParts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match;
+        // Important: create a new regex instance for each part as the global flag is stateful
+        const localTimeRegex = new RegExp(timeRegex);
+        while ((match = localTimeRegex.exec(part)) !== null) {
+          timerParts.push(part.slice(lastIndex, match.index));
+          const duration = parseTimeToSeconds(match[1], match[2]);
+          timerParts.push(
+            <button
+              key={`${index}-${match.index}-timer`}
+              onClick={() => startTimer(duration)}
+              className="mx-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-sm font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+              {match[0]}
+            </button>
+          );
+          lastIndex = match.index + match[0].length;
+        }
+        timerParts.push(part.slice(lastIndex));
+        
+        return <React.Fragment key={`${index}-text`}>{timerParts}</React.Fragment>;
+      })}
+    </span>
+  );
   };
 
 
@@ -701,25 +701,24 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
                     ) : (
                         <ul className="mt-4 space-y-2">
                           {(isEditing ? editedRecipe.ingredientsNeeded : recipe.ingredientsNeeded || []).map((ing, i) => (
-                          <li key={i} className="flex items-start gap-2">
-                            {isEditing ? (
-                              <div className="flex items-center gap-2 w-full">
-                                <input type="text" placeholder="Qtd" value={typeof ing === 'string' ? '' : (ing.quantity || '')} onChange={(e) => handleIngredientChange(i, 'quantity', e.target.value, 'ingredientsNeeded')} className="w-16 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
-                                <input type="text" placeholder="Unid." value={typeof ing === 'string' ? '' : (ing.unit || '')} onChange={(e) => handleIngredientChange(i, 'unit', e.target.value, 'ingredientsNeeded')} className="w-24 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
-                                <input type="text" placeholder="Nome" value={typeof ing === 'string' ? ing : (ing.name || '')} onChange={(e) => handleIngredientChange(i, 'name', e.target.value, 'ingredientsNeeded')} className="flex-grow p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
-                                <button onClick={() => handleRemoveIngredient(i, 'ingredientsNeeded')} className="flex-shrink-0 h-8 w-8 rounded-full inline-flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600" aria-label={`Remover ingrediente`}>
-                                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <span className="text-orange-500 mr-2 mt-1 flex-shrink-0">•</span>
-                                <span className="text-gray-700 capitalize">{formatIngredient(ing)}</span>
-                              </>
-                            )}
-                          </li>
+                            <li key={i} className="flex items-start gap-2">
+                              {isEditing ? (
+                                <div className="flex items-center gap-2 w-full">
+                                  <input type="text" placeholder="Qtd" value={typeof ing === 'string' ? '' : (ing.quantity || '')} onChange={(e) => handleIngredientChange(i, 'quantity', e.target.value, 'ingredientsNeeded')} className="w-16 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                  <input type="text" placeholder="Unid." value={typeof ing === 'string' ? '' : (ing.unit || '')} onChange={(e) => handleIngredientChange(i, 'unit', e.target.value, 'ingredientsNeeded')} className="w-24 p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                  <input type="text" placeholder="Nome" value={typeof ing === 'string' ? ing : (ing.name || '')} onChange={(e) => handleIngredientChange(i, 'name', e.target.value, 'ingredientsNeeded')} className="flex-grow p-1 border border-slate-300 rounded bg-slate-800 text-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 text-sm" />
+                                  <button onClick={() => handleRemoveIngredient(i, 'ingredientsNeeded')} className="flex-shrink-0 h-8 w-8 rounded-full inline-flex items-center justify-center text-red-500 hover:bg-red-100 hover:text-red-600" aria-label={`Remover ingrediente`}>
+                                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="text-orange-500 mr-2 mt-1 flex-shrink-0">•</span>
+                                  <span className="text-gray-700 capitalize">{formatIngredient(ing)}</span>
+                                </>
+                              )}
+                            </li>
                           ))}
-                          {isEditing && <button onClick={() => handleAddIngredient('ingredientsNeeded')} className="mt-2 text-sm text-orange-600 font-semibold">+ Adicionar Ingrediente</button>}
                         </ul>
                     )}
                 </div>
