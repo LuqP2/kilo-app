@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
 import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT, checkAndIncrementUsage } from './services/usageService';
+import { compressMultipleImages, shouldCompressImage } from './utils/imageUtils';
 import { AuthProvider, useAuth } from './AuthContext';
 
 import Header from './components/Header';
@@ -314,44 +315,63 @@ const App: React.FC = () => {
       return;
     }
 
-    setImageFiles(files);
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
-    
-    // Reset results state
-    setRecipes([]);
-    setMarketRecipes([]);
-    setWeeklyPlan(null);
 
     try {
-        if (files.length > 1) {
-            setAppMode(AppMode.INGREDIENTS);
-            const foundIngredients = await identifyIngredients(files);
-            updateUsageCount();
-            await startInitialSearch(foundIngredients);
-        } else {
-            const file = files[0];
-            const imageType = await classifyImage(file);
+      // Compress images to avoid memory issues on mobile devices
+      // Large photos from phone cameras (4-8MB) can cause out-of-memory errors
+      // when converted to Base64. This compression reduces size to ~800KB max.
+      const filesToProcess = await Promise.all(
+        files.map(async (file) => {
+          if (shouldCompressImage(file)) {
+            console.debug(`[App] Compressing image: ${file.name} (${(file.size / 1024).toFixed(1)}KB)`);
+            return await compressMultipleImages([file], {
+              maxWidth: 1920,
+              maxHeight: 1080,
+              quality: 0.8,
+              maxSizeKB: 800
+            }).then(compressed => compressed[0]);
+          }
+          return file;
+        })
+      );
 
-            if (imageType === 'DISH') {
-                setAppMode(AppMode.DISH_PHOTO);
-                const recipe = await getRecipeFromImage(file, userSettings);
-                updateUsageCount();
-                if (recipe) {
-                    setRecipes([addIdToRecipe(recipe)]);
-                    setAppState(AppState.SHOWING_RESULTS);
-                } else {
-                    setError('Não conseguimos identificar uma receita a partir desta imagem. Por favor, tente outra foto.');
-                    setAppState(AppState.IDLE);
-                }
-            } else { // 'INGREDIENTS'
-                setAppMode(AppMode.INGREDIENTS);
-                const foundIngredients = await identifyIngredients(files);
-                updateUsageCount();
-                await startInitialSearch(foundIngredients);
-            }
-        }
+      setImageFiles(filesToProcess);
+    
+      // Reset results state
+      setRecipes([]);
+      setMarketRecipes([]);
+      setWeeklyPlan(null);
+
+      if (filesToProcess.length > 1) {
+          setAppMode(AppMode.INGREDIENTS);
+          const foundIngredients = await identifyIngredients(filesToProcess);
+          updateUsageCount();
+          await startInitialSearch(foundIngredients);
+      } else {
+          const file = filesToProcess[0];
+          const imageType = await classifyImage(file);
+
+          if (imageType === 'DISH') {
+              setAppMode(AppMode.DISH_PHOTO);
+              const recipe = await getRecipeFromImage(file, userSettings);
+              updateUsageCount();
+              if (recipe) {
+                  setRecipes([addIdToRecipe(recipe)]);
+                  setAppState(AppState.SHOWING_RESULTS);
+              } else {
+                  setError('Não conseguimos identificar uma receita a partir desta imagem. Por favor, tente outra foto.');
+                  setAppState(AppState.IDLE);
+              }
+          } else { // 'INGREDIENTS'
+              setAppMode(AppMode.INGREDIENTS);
+              const foundIngredients = await identifyIngredients(filesToProcess);
+              updateUsageCount();
+              await startInitialSearch(foundIngredients);
+          }
+      }
     } catch (e) {
         handleApiError(e);
         setAppState(AppState.IDLE);
@@ -372,28 +392,39 @@ const App: React.FC = () => {
       return;
     }
 
-    setImageFiles([file]);
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
     setAppMode(AppMode.LEFTOVERS);
 
-    // Reset results state
-    setRecipes([]);
-    setMarketRecipes([]);
-    setWeeklyPlan(null);
-
     try {
-        const suggested = await suggestLeftoverRecipes(file, userSettings);
-        updateUsageCount();
-        if (suggested.length > 0) {
-            setRecipes(addIdToRecipes(suggested));
-            setResultsMode(ResultsMode.USE_WHAT_I_HAVE);
-            setAppState(AppState.SHOWING_RESULTS);
-        } else {
-            setError('Não conseguimos criar novas receitas a partir desta imagem de sobras. Tente outra foto.');
-            setAppState(AppState.IDLE);
-        }
+      // Compress image if needed to prevent mobile memory issues
+      const fileToProcess = shouldCompressImage(file) 
+        ? await compressMultipleImages([file], {
+            maxWidth: 1920,
+            maxHeight: 1080,
+            quality: 0.8,
+            maxSizeKB: 800
+          }).then(compressed => compressed[0])
+        : file;
+
+      setImageFiles([fileToProcess]);
+
+      // Reset results state
+      setRecipes([]);
+      setMarketRecipes([]);
+      setWeeklyPlan(null);
+
+      const suggested = await suggestLeftoverRecipes(fileToProcess, userSettings);
+      updateUsageCount();
+      if (suggested.length > 0) {
+          setRecipes(addIdToRecipes(suggested));
+          setResultsMode(ResultsMode.USE_WHAT_I_HAVE);
+          setAppState(AppState.SHOWING_RESULTS);
+      } else {
+          setError('Não conseguimos criar novas receitas a partir desta imagem de sobras. Tente outra foto.');
+          setAppState(AppState.IDLE);
+      }
     } catch (e) {
         handleApiError(e);
         setAppState(AppState.IDLE);
