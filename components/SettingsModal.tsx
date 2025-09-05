@@ -40,11 +40,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   const [customPantryStaple, setCustomPantryStaple] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [allergiesInput, setAllergiesInput] = useState('');
+  const [appliedAllergies, setAppliedAllergies] = useState<string[]>([]);
 
   useEffect(() => {
     setCurrentSettings(settings);
     setActiveTab(initialTab);
     setSaveError(null); // Limpa erro ao reabrir modal
+    
+    // Inicializar alergias aplicadas com as configurações existentes
+    if (settings.allergies) {
+      const existingAllergies = settings.allergies
+        .split(',')
+        .map(allergy => allergy.trim())
+        .filter(allergy => allergy.length > 0);
+      setAppliedAllergies(existingAllergies);
+    } else {
+      setAppliedAllergies([]);
+    }
+    setAllergiesInput('');
   }, [settings, isOpen, initialTab]);
 
   useEffect(() => {
@@ -67,7 +81,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
   };
 
   const handleAllergiesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCurrentSettings(prev => ({ ...prev, allergies: e.target.value }));
+    setAllergiesInput(e.target.value);
+  };
+  
+  const handleApplyAllergies = () => {
+    if (allergiesInput.trim()) {
+      const newAllergies = allergiesInput
+        .split(',')
+        .map(allergy => allergy.trim())
+        .filter(allergy => allergy.length > 0);
+      
+      setAppliedAllergies(prev => [...prev, ...newAllergies]);
+      setAllergiesInput('');
+      
+      // Atualizar o currentSettings com as alergias aplicadas
+      const allAllergies = [...appliedAllergies, ...newAllergies].join(', ');
+      setCurrentSettings(prev => ({ ...prev, allergies: allAllergies }));
+    }
+  };
+  
+  const handleRemoveAllergy = (allergyToRemove: string) => {
+    setAppliedAllergies(prev => prev.filter(allergy => allergy !== allergyToRemove));
+    const updatedAllergies = appliedAllergies.filter(allergy => allergy !== allergyToRemove).join(', ');
+    setCurrentSettings(prev => ({ ...prev, allergies: updatedAllergies }));
   };
   
   const handleCuisineChange = (cuisine: string) => {
@@ -158,12 +194,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         className="bg-white rounded-none sm:rounded-xl shadow-2xl w-full h-full sm:w-full sm:max-w-2xl sm:h-auto sm:max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 pb-0 flex-shrink-0">
-          <div className="flex justify-between items-center">
+        <div className="p-6 pb-4 flex-shrink-0 border-b border-slate-200">
+          <div className="flex items-center justify-center relative">
             <h3 className="text-2xl font-bold text-slate-900">Configurações</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="absolute right-0 text-gray-400 hover:text-gray-600 transition-colors duration-200"
               aria-label="Fechar modal"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -171,14 +207,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </svg>
             </button>
           </div>
-           <p className="mt-1 text-sm text-slate-500">Personalize suas sugestões de receitas.</p>
+          <p className="mt-2 text-sm text-slate-500 text-center">Personalize suas sugestões de receitas.</p>
         </div>
         
-        <div className="px-6 mt-4 border-b border-slate-200 flex-shrink-0">
+        <div className="px-6 border-b border-slate-200 flex-shrink-0">
             <nav className="-mb-px flex space-x-6" aria-label="Tabs">
               <button
                 onClick={() => setActiveTab('preferences')}
-                className={`shrink-0 px-1 py-3 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-1 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
                   activeTab === 'preferences'
                     ? 'border-orange-500 text-orange-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -188,7 +224,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               </button>
               <button
                 onClick={() => setActiveTab('kitchen')}
-                className={`shrink-0 px-1 py-3 text-sm font-medium border-b-2 ${
+                className={`shrink-0 px-1 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
                   activeTab === 'kitchen'
                     ? 'border-orange-500 text-orange-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -199,159 +235,308 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
             </nav>
         </div>
 
-        <div className="p-6 overflow-y-auto space-y-8">
+        <div className="p-6 overflow-y-auto space-y-4" style={{ backgroundColor: '#FAFAF5' }}>
             {activeTab === 'preferences' && (
                 <>
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Perfil de Sabor</legend>
-                        <div className="mt-4">
-                            <h5 className="text-base font-medium text-slate-700">Cozinhas Preferidas</h5>
-                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {CUISINES.map(cuisine => (
-                                    <label key={cuisine} className="flex items-center cursor-pointer">
-                                        <input type="checkbox" checked={currentSettings.flavorProfile?.favoriteCuisines?.includes(cuisine) || false} onChange={() => handleCuisineChange(cuisine)} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/>
-                                        <span className="ml-3 text-slate-700">{cuisine}</span>
-                                    </label>
-                                ))}
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Perfil de Sabor</h4>
+                        <div className="mb-6">
+                            <h5 className="text-base font-normal text-slate-700 mb-3">Cozinhas Preferidas</h5>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {CUISINES.map(cuisine => {
+                                    const isSelected = currentSettings.flavorProfile?.favoriteCuisines?.includes(cuisine) || false;
+                                    return (
+                                        <button
+                                            key={cuisine}
+                                            type="button"
+                                            onClick={() => handleCuisineChange(cuisine)}
+                                            className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors duration-200 ${
+                                                isSelected
+                                                    ? 'bg-[#4CAF50] text-white border-[#4CAF50]'
+                                                    : 'bg-white text-slate-700 border-gray-300 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            {cuisine}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
-                        <div className="mt-6">
-                            <h5 className="text-base font-medium text-slate-700">Nível de Picância</h5>
-                            <div className="mt-3 flex flex-wrap gap-3">
+                        <div>
+                            <h5 className="text-base font-normal text-slate-700 mb-3">Nível de Picância</h5>
+                            <div className="flex gap-3">
                                 {SPICE_LEVELS.map(({ id, name }) => (
-                                    <button key={id} type="button" onClick={() => handleSpiceLevelChange(id)} className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors ${currentSettings.flavorProfile?.spiceLevel === id ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}`}>
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => handleSpiceLevelChange(id)}
+                                        className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors duration-200 ${
+                                            currentSettings.flavorProfile?.spiceLevel === id
+                                                ? 'bg-[#FF7043] text-white border-[#FF7043]'
+                                                : 'bg-white text-slate-700 border-gray-300 hover:bg-gray-100'
+                                        }`}
+                                    >
                                         {name}
                                     </button>
                                 ))}
                             </div>
                         </div>
-                    </fieldset>
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Estilo de Vida</legend>
-                        <div className="mt-4 space-y-3">
-                            <label className="flex items-center cursor-pointer">
-                                <input type="checkbox" name="isFitMode" checked={currentSettings.isFitMode} onChange={handleCheckboxChange} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/>
-                                <span className="ml-3 text-slate-700 font-medium">Modo Fit</span>
-                            </label>
-                            <p className="ml-8 text-sm text-slate-500 -mt-2">Prioriza receitas mais saudáveis, com foco em baixo teor calórico, pouca gordura e alto valor nutritivo.</p>
+                    </div>
+
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Estilo de Vida</h4>
+                        <div className="space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentSettings(prev => ({ ...prev, isFitMode: !prev.isFitMode }))}
+                                className={`w-full text-left px-4 py-3 text-sm font-medium rounded-full border transition-colors duration-200 ${
+                                    currentSettings.isFitMode
+                                        ? 'bg-[#4CAF50] text-white border-[#4CAF50]'
+                                        : 'bg-white text-slate-700 border-gray-300 hover:bg-gray-100'
+                                }`}
+                            >
+                                Modo Fit
+                            </button>
+                            <p className="ml-4 text-sm text-slate-500 -mt-2">Prioriza receitas mais saudáveis, com foco em baixo teor calórico, pouca gordura e alto valor nutritivo.</p>
                         </div>
-                    </fieldset>
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Restrições Alimentares</legend>
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label className="flex items-center cursor-pointer"><input type="checkbox" name="isVegetarian" checked={currentSettings.isVegetarian} onChange={handleCheckboxChange} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/><span className="ml-3 text-slate-700">Vegetariano</span></label>
-                            <label className="flex items-center cursor-pointer"><input type="checkbox" name="isVegan" checked={currentSettings.isVegan} onChange={handleCheckboxChange} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/><span className="ml-3 text-slate-700">Vegano</span></label>
-                            <label className="flex items-center cursor-pointer"><input type="checkbox" name="isGlutenFree" checked={currentSettings.isGlutenFree} onChange={handleCheckboxChange} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/><span className="ml-3 text-slate-700">Sem Glúten</span></label>
-                            <label className="flex items-center cursor-pointer"><input type="checkbox" name="isLactoseFree" checked={currentSettings.isLactoseFree} onChange={handleCheckboxChange} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/><span className="ml-3 text-slate-700">Sem Lactose</span></label>
+                    </div>
+
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Restrições Alimentares</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {[
+                                { key: 'isVegetarian', label: 'Vegetariano' },
+                                { key: 'isVegan', label: 'Vegano' },
+                                { key: 'isGlutenFree', label: 'Sem Glúten' },
+                                { key: 'isLactoseFree', label: 'Sem Lactose' }
+                            ].map(({ key, label }) => (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setCurrentSettings(prev => ({ ...prev, [key]: !prev[key as keyof UserSettings] }))}
+                                    className={`px-4 py-2 text-sm font-medium rounded-full border transition-colors duration-200 ${
+                                        currentSettings[key as keyof UserSettings]
+                                            ? 'bg-[#4CAF50] text-white border-[#4CAF50]'
+                                            : 'bg-white text-slate-700 border-gray-300 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
-                    </fieldset>
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Alergias</legend>
-                        <p className="text-sm text-slate-500">Liste os ingredientes que você não pode consumir, separados por vírgula.</p>
-                        <input type="text" value={currentSettings.allergies} onChange={handleAllergiesChange} placeholder="Ex: amendoim, frutos do mar, soja" className="mt-3 w-full bg-white border border-slate-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm"/>
-                    </fieldset>
+                    </div>
+
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Alergias</h4>
+                        <p className="text-sm text-slate-500 mb-3">Liste os ingredientes que você não pode consumir, separados por vírgula.</p>
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={allergiesInput}
+                                onChange={handleAllergiesChange}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleApplyAllergies();
+                                    }
+                                }}
+                                placeholder="Ex: amendoim, frutos do mar, soja"
+                                className="flex-1 bg-white border border-gray-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm placeholder-gray-400"
+                                style={{ borderRadius: '0.375rem' }}
+                            />
+                            <button
+                                type="button"
+                                onClick={handleApplyAllergies}
+                                className="px-4 py-2 text-sm font-medium rounded-md shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] transition-colors duration-200"
+                            >
+                                Aplicar
+                            </button>
+                        </div>
+                        {appliedAllergies.length > 0 && (
+                            <div>
+                                <h5 className="text-sm font-medium text-slate-700 mb-2">Alergias aplicadas:</h5>
+                                <div className="flex flex-wrap gap-2">
+                                    {appliedAllergies.map((allergy, index) => (
+                                        <div
+                                            key={index}
+                                            className="inline-flex items-center gap-x-1.5 rounded-full bg-[#4CAF50] px-3 py-1 text-sm font-medium text-white"
+                                        >
+                                            <span>{allergy}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveAllergy(allergy)}
+                                                className="ml-1 h-4 w-4 rounded-full hover:bg-white/20 flex items-center justify-center"
+                                                aria-label={`Remover ${allergy}`}
+                                            >
+                                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </>
             )}
             {activeTab === 'kitchen' && (
                 <>
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Eletrodomésticos Principais</legend>
-                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Eletrodomésticos Principais</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                             {APPLIANCES.map(appliance => {
                                 const isSelected = currentSettings.kitchenEquipment?.includes(appliance.name);
                                 return (
-                                    <button key={appliance.name} type="button" onClick={() => handleEquipmentToggle(appliance.name)} className={`flex flex-col items-center justify-center text-center p-4 rounded-lg border-2 transition-all ${isSelected ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'}`}>
-                                        <div className="h-8 w-8">{appliance.icon}</div>
-                                        <span className="mt-2 text-sm font-medium">{appliance.name}</span>
+                                    <button
+                                        key={appliance.name}
+                                        type="button"
+                                        onClick={() => handleEquipmentToggle(appliance.name)}
+                                        className={`flex flex-col items-center justify-center text-center p-4 rounded-xl border-2 transition-all ${
+                                            isSelected
+                                                ? 'border-[#4CAF50] bg-[#4CAF50] text-white'
+                                                : 'border-gray-300 bg-white text-slate-600 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        <div className="h-8 w-8 mb-2">{appliance.icon}</div>
+                                        <span className="text-sm font-medium">{appliance.name}</span>
                                     </button>
                                 );
                             })}
                         </div>
-                    </fieldset>
+                    </div>
 
-                    <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Utensílios Comuns</legend>
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {UTENSILS.map(utensil => (
-                                <label key={utensil} className="flex items-center cursor-pointer">
-                                    <input type="checkbox" checked={currentSettings.kitchenEquipment?.includes(utensil) || false} onChange={() => handleEquipmentToggle(utensil)} className="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500"/>
-                                    <span className="ml-3 text-slate-700">{utensil}</span>
-                                </label>
-                            ))}
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Utensílios Comuns</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {UTENSILS.map(utensil => {
+                                const isSelected = currentSettings.kitchenEquipment?.includes(utensil);
+                                return (
+                                    <button
+                                        key={utensil}
+                                        type="button"
+                                        onClick={() => handleEquipmentToggle(utensil)}
+                                        className={`flex flex-col items-center justify-center text-center p-4 rounded-xl border-2 transition-all ${
+                                            isSelected
+                                                ? 'border-[#4CAF50] bg-[#4CAF50] text-white'
+                                                : 'border-gray-300 bg-white text-slate-600 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        <span className="text-sm font-medium">{utensil}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                    </fieldset>
+                    </div>
 
-                     <fieldset>
-                         <legend className="text-lg font-semibold text-slate-800">Outros equipamentos</legend>
-                         <p className="text-sm text-slate-500">Tem algo que não está na lista? Adicione aqui.</p>
-                         <form onSubmit={handleAddCustomEquipment} className="mt-3 flex gap-2">
-                             <input
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Outros equipamentos</h4>
+                        <p className="text-sm text-slate-500 mb-3">Tem algo que não está na lista? Adicione aqui.</p>
+                        <form onSubmit={handleAddCustomEquipment} className="flex gap-2">
+                            <input
                                 type="text"
                                 value={customEquipment}
                                 onChange={(e) => setCustomEquipment(e.target.value)}
                                 placeholder="Ex: Máquina de waffle, fouet"
-                                className="flex-grow min-w-0 bg-white border border-slate-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm"
-                              />
-                              <button type="submit" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                                  Adicionar
-                              </button>
-                         </form>
-                         <div className="mt-3 flex flex-wrap gap-2">
-                            {currentSettings.kitchenEquipment?.filter(e => !APPLIANCES.find(a => a.name === e) && !UTENSILS.includes(e)).map(item => (
-                                <span key={item} className="inline-flex items-center gap-x-1.5 rounded-md bg-slate-200 px-2.5 py-1 text-sm font-medium text-slate-800">
-                                    <span className="capitalize">{item}</span>
-                                    <button type="button" onClick={() => handleEquipmentToggle(item)} className="group relative -mr-1 h-3.5 w-3.5 rounded-sm hover:bg-slate-600/20" aria-label={`Remover ${item}`}>
-                                        <svg viewBox="0 0 14 14" className="h-3.5 w-3.5 stroke-slate-700/50 group-hover:stroke-slate-700/75"><path d="M4 4l6 6m0-6l-6 6" /></svg>
-                                    </button>
-                                </span>
-                            ))}
-                         </div>
-                    </fieldset>
+                                className="flex-1 bg-white border border-gray-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm placeholder-gray-400"
+                                style={{ borderRadius: '0.375rem' }}
+                            />
+                            <button
+                                type="submit"
+                                className="px-4 py-2 text-sm font-medium rounded-xl shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] transition-colors duration-200"
+                            >
+                                Adicionar
+                            </button>
+                        </form>
+                        {currentSettings.kitchenEquipment?.filter(e => !APPLIANCES.find(a => a.name === e) && !UTENSILS.includes(e)).length > 0 && (
+                            <div className="mt-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {currentSettings.kitchenEquipment?.filter(e => !APPLIANCES.find(a => a.name === e) && !UTENSILS.includes(e)).map(item => (
+                                        <div
+                                            key={item}
+                                            className="inline-flex items-center gap-x-1.5 rounded-full bg-[#FFE0D6] px-3 py-1 text-sm font-medium text-[#FF7043]"
+                                        >
+                                            <span className="capitalize">{item}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleEquipmentToggle(item)}
+                                                className="ml-1 h-4 w-4 rounded-full hover:bg-[#FF7043]/20 flex items-center justify-center"
+                                                aria-label={`Remover ${item}`}
+                                            >
+                                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
-                     <fieldset>
-                        <legend className="text-lg font-semibold text-slate-800">Itens Básicos da Despensa</legend>
-                        <p className="text-sm text-slate-500">Informe os temperos e itens que você sempre tem. A IA saberá que pode usá-los sem que você precise digitá-los ou fotografá-los.</p>
-                        
-                        <form onSubmit={handleAddCustomPantryStaple} className="mt-3 flex gap-2">
+                    <div className="mt-4 bg-white rounded-2xl shadow-sm p-6">
+                        <h4 className="text-lg font-semibold text-slate-800 mb-4">Itens Básicos da Despensa</h4>
+                        <p className="text-sm text-slate-500 mb-3">Informe os temperos e itens que você sempre tem. A IA saberá que pode usá-los sem que você precise digitá-los ou fotografá-los.</p>
+
+                        <form onSubmit={handleAddCustomPantryStaple} className="flex gap-2 mb-4">
                             <input
                                 type="text"
                                 value={customPantryStaple}
                                 onChange={(e) => setCustomPantryStaple(e.target.value)}
                                 placeholder="Ex: Pimenta calabresa, açafrão"
-                                className="flex-grow min-w-0 bg-white border border-slate-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm"
+                                className="flex-1 bg-white border border-gray-300 text-slate-900 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 sm:text-sm placeholder-gray-400"
+                                style={{ borderRadius: '0.375rem' }}
                             />
-                            <button type="submit" className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                            <button
+                                type="submit"
+                                className="px-4 py-2 text-sm font-medium rounded-xl shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] transition-colors duration-200"
+                            >
                                 Adicionar
                             </button>
                         </form>
-                        
-                        <div className="mt-4 flex min-h-[44px] flex-wrap items-start justify-center gap-2" aria-live="polite">
-                            {currentSettings.pantryStaples?.map(item => (
-                                <Badge
-                                    key={item}
-                                    text={item}
-                                    onClick={() => handlePantryStapleToggle(item)}
-                                    removable={true}
-                                />
-                            ))}
-                        </div>
-                        
+
+                        {currentSettings.pantryStaples?.length > 0 && (
+                            <div className="mb-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {currentSettings.pantryStaples?.map(item => (
+                                        <div
+                                            key={item}
+                                            className="inline-flex items-center gap-x-1.5 rounded-full bg-[#FFE0D6] px-3 py-1 text-sm font-medium text-[#FF7043]"
+                                        >
+                                            <span>{item}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePantryStapleToggle(item)}
+                                                className="ml-1 h-4 w-4 rounded-full hover:bg-[#FF7043]/20 flex items-center justify-center"
+                                                aria-label={`Remover ${item}`}
+                                            >
+                                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {(() => {
                             const lowercasedSelectedStaples = currentSettings.pantryStaples?.map(s => s.toLowerCase()) || [];
                             const filteredSuggestions = PANTRY_STAPLES.filter(suggestion => !lowercasedSelectedStaples.includes(suggestion.toLowerCase()));
-                            
+
                             if (filteredSuggestions.length > 0) {
                                 return (
-                                    <div className="mt-6 pt-4 border-t border-slate-200">
+                                    <div className="pt-4 border-t border-slate-200">
                                         <p className="text-center text-sm text-slate-500 mb-3">Sugestões comuns:</p>
                                         <div className="flex flex-wrap justify-center gap-2">
                                             {filteredSuggestions.map((suggestion) => (
-                                                <Badge
+                                                <button
                                                     key={suggestion}
-                                                    text={suggestion}
-                                                    variant="suggestion"
+                                                    type="button"
                                                     onClick={() => handlePantryStapleToggle(suggestion)}
-                                                />
+                                                    className="px-3 py-1 text-sm font-medium rounded-full bg-[#F3F4F6] text-[#374151] hover:bg-gray-200 transition-colors"
+                                                >
+                                                    {suggestion}
+                                                </button>
                                             ))}
                                         </div>
                                     </div>
@@ -359,7 +544,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
                             }
                             return null;
                         })()}
-                    </fieldset>
+                    </div>
                 </>
             )}
         </div>
@@ -370,15 +555,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
               <p className="text-sm text-red-800">{saveError}</p>
             </div>
           )}
-          <div className="text-right">
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="inline-flex items-center justify-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-semibold rounded-xl shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
         </div>
       </div>
     </div>

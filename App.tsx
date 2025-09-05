@@ -724,7 +724,7 @@ const App: React.FC = () => {
                 
                 {/* Main Title */}
                 <h3 className="text-2xl font-semibold text-gray-900 mb-4">Fotografe sua geladeira</h3>
-                <p className="text-gray-600 mb-10 leading-relaxed">Identifique seus ingredientes e receba receitas personalizadas na hora</p>
+                <p className="text-gray-600 mb-6 leading-relaxed">Identifique seus ingredientes e receba receitas personalizadas na hora</p>
                 
                 {/* Main Camera Button */}
                 <ImageUploader 
@@ -738,7 +738,7 @@ const App: React.FC = () => {
                 />
                 
                 {/* Manual Input Link */}
-                <div className="mt-8">
+                <div className="mt-6">
                   <button 
                     onClick={() => document.getElementById('manual-input')?.scrollIntoView({ behavior: 'smooth' })}
                     className="text-sm text-gray-500 hover:text-gray-700 underline transition-colors font-medium"
@@ -750,7 +750,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Secondary Options */}
-            <div className="w-full max-w-md space-y-6 mb-16">
+            <div className="w-full max-w-md space-y-4 mb-8">
               {/* Dish Photo Option */}
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 hover:shadow-lg transition-shadow duration-300">
                 <div className="flex items-center space-x-6">
@@ -835,7 +835,7 @@ const App: React.FC = () => {
             
             {/* Manual Input Section */}
             <div id="manual-input" className="w-full max-w-lg">
-              <div className="relative my-12">
+              <div className="relative my-8">
                 <div className="absolute inset-0 flex items-center" aria-hidden="true">
                   <div className="w-full border-t border-gray-200" />
                 </div>
@@ -844,14 +844,14 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
                 <ManualIngredientInput
                   ingredients={manualIngredients}
                   onAddIngredient={handleAddManualIngredient}
                   onRemoveIngredient={handleRemoveManualIngredient}
                   disabled={!hasAccess}
                 />
-                <div className="mt-10 text-center">
+                <div className="mt-6 text-center">
                   <button
                     onClick={handleManualSubmit}
                     disabled={manualIngredients.length === 0 || !hasAccess}
