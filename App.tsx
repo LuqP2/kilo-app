@@ -9,6 +9,7 @@ import ImageUploader from './components/ImageUploader';
 import LoadingView from './components/LoadingView';
 import ResultsView from './components/ResultsView';
 import Footer from './components/Footer';
+import Header from './components/Header';
 import SavedRecipesModal from './components/SavedRecipesModal';
 import RecipeModal from './components/RecipeModal';
 import ManualIngredientInput from './components/ManualIngredientInput';
@@ -819,26 +820,24 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-[#FAFAF5]">
-      {/* Renderização unificada - sempre mostra navigation e header */}
-      <div className="pb-20 md:pb-0">
-        <div className="hidden md:block">
-          <BottomNavigation
-            currentView={currentBottomNavView}
-            onNavigate={handleBottomNavigation}
-          />
+      {/* Header -- site-wide */}
+      <Header
+        hasGenerationsLeft={remainingGenerations > 0}
+        generationsLeft={remainingGenerations}
+        onShowSettings={() => handleShowSettings()}
+        currentView={currentBottomNavView}
+        onNavigate={handleBottomNavigation}
+      />
+
+      {/* Main content area */}
+      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
+            {renderContent()}
         </div>
-        
-        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
-              {renderContent()}
-          </div>
-        </main>
-        
-        {/* Footer só é mostrado quando não está no home */}
-        {appState !== AppState.IDLE && <Footer />}
-      </div>
-      
-      <div className="md:hidden">
+      </main>
+
+      {/* Mobile bottom navigation only (hidden on md+) */}
+      <div className="md:hidden fixed inset-x-0 bottom-0 z-40">
         <BottomNavigation
           currentView={currentBottomNavView}
           onNavigate={handleBottomNavigation}
@@ -888,7 +887,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Hidden file input for HomeScreen camera functionality */}
+  {/* Footer: ensure it's a direct child of the root flex container so mt-auto works */}
+  {appState !== AppState.IDLE && <Footer />}
+
+  {/* Hidden file input for HomeScreen camera functionality */}
       <input 
         id="card-file-input" 
         type="file" 

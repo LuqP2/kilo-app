@@ -92,23 +92,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="home-screen">
-      {/* Header */}
-      <div className="home-header">
-        <div className="logo">kilo</div>
-        <div className="header-right">
-          {isPro ? (
-            <span className="plan-badge pro">Kilo Pro</span>
-          ) : (
-            <button 
-              className="plan-badge free" 
-              onClick={onUpgradeClick}
-              title="Clique para fazer upgrade"
-            >
-              {remainingGenerations} gerações restantes
-            </button>
-          )}
-        </div>
-      </div>
+
 
       {/* Conteúdo principal centralizado */}
       <div className="home-content">
