@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, startTransition } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, signOut as firebaseSignOut } from "firebase/auth";
 import { auth } from "./firebaseConfig.ts";
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "./firebaseConfig.ts";
@@ -10,6 +10,7 @@ interface AuthContextType {
   loading: boolean;
   userProfile: UserProfile | null;
   updateUserProfile: (newData: Partial<UserProfile>) => Promise<void>;
+  signOut: () => Promise<void>;
   getIdToken?: () => Promise<string | null>;
 }
 
@@ -79,6 +80,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
   console.debug('[Auth] onAuthStateChanged ->', { uid: user ? user.uid : null });
@@ -135,7 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, userProfile, updateUserProfile, getIdToken }}>
+    <AuthContext.Provider value={{ currentUser, loading, userProfile, updateUserProfile, signOut, getIdToken }}>
       {children}
     </AuthContext.Provider>
   );
