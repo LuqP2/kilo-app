@@ -42,8 +42,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao atualizar perfil');
+        // Some error pages (e.g. 404/500 from cloud provider) return HTML instead
+        // of JSON which would make response.json() throw with "Unexpected token '<'".
+        // Try to parse JSON first, otherwise fall back to plain text.
+        let errMsg = 'Erro ao atualizar perfil';
+        try {
+          const errorData = await response.json();
+          errMsg = errorData?.error || JSON.stringify(errorData) || errMsg;
+        } catch (parseErr) {
+          // fallback to text (could be HTML error page)
+          try {
+            const text = await response.text();
+            if (text) errMsg = text;
+          } catch (_e) {
+            // ignore
+          }
+        }
+        throw new Error(errMsg);
       }
 
       // Se passou na validação, atualizar estado local
