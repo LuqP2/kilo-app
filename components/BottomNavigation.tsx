@@ -1,5 +1,6 @@
 import React from 'react';
 import { Home, Heart, Calendar, Settings } from 'lucide-react';
+import './BottomNavigation.css';
 
 interface BottomNavigationProps {
   currentView: 'home' | 'recipes' | 'planning' | 'settings';
@@ -11,46 +12,46 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ currentView, onNavi
     {
       id: 'home' as const,
       label: 'Home',
-      icon: <Home size={24} />
+      icon: <Home size={20} strokeWidth={1.5} />
     },
     {
       id: 'recipes' as const,
       label: 'Receitas Salvas',
-      icon: <Heart size={24} />
+      icon: <Heart size={20} strokeWidth={1.5} />
     },
     {
       id: 'planning' as const,
       label: 'Planejamento',
-      icon: <Calendar size={24} />
+      icon: <Calendar size={20} strokeWidth={1.5} />
     },
     {
       id: 'settings' as const,
       label: 'Configurações',
-      icon: <Settings size={24} />
+      icon: <Settings size={20} strokeWidth={1.5} />
     }
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 w-full bg-[#FFFFFF] border-t border-[#E5E7EB] border-t-[1px] h-16 z-50 shadow-sm md:hidden">
-      <div className="flex items-center justify-around h-full w-full px-2">
+    <nav className="bottom-navigation">
+      <div className="bottom-nav-container">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors duration-200 ${
-              currentView === item.id
-                ? 'text-[#FF7043] font-bold'
-                : 'text-[#6B7280] font-normal hover:text-[#FF7043]'
-            }`}
+            className={`bottom-nav-item ${currentView === item.id ? 'active' : ''}`}
           >
-            <div className={`mb-0.5 flex items-center justify-center ${currentView === item.id ? 'text-[#FF7043]' : 'text-[#6B7280]'} transition-colors duration-200`}>
-              {React.cloneElement(item.icon, { size: 24, color: currentView === item.id ? '#FF7043' : '#6B7280' })}
+            <div className="bottom-nav-icon">
+              {React.cloneElement(item.icon, { 
+                size: 20, 
+                color: currentView === item.id ? '#333333' : '#666666',
+                strokeWidth: currentView === item.id ? 2 : 1.5
+              })}
             </div>
-            <span className={`text-xs mt-1 transition-colors duration-200 ${currentView === item.id ? 'text-[#FF7043] font-bold' : 'text-[#6B7280] font-normal'}`}>{item.label}</span>
+            <span className="bottom-nav-label">{item.label}</span>
           </button>
         ))}
       </div>
-    </div>
+    </nav>
   );
 };
 

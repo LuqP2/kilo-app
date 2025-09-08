@@ -5,7 +5,6 @@ import { getRemainingGenerations, FREE_PLAN_LIMIT, checkAndIncrementUsage } from
 import { compressMultipleImages, shouldCompressImage, isLowMemoryDevice, emergencyCompress } from './utils/imageUtils';
 import { AuthProvider, useAuth } from './AuthContext';
 
-import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
 import LoadingView from './components/LoadingView';
 import ResultsView from './components/ResultsView';
@@ -19,6 +18,7 @@ import RegionLockMessage from './components/RegionLockMessage';
 import UpgradeModal from './components/UpgradeModal';
 import LoginScreen from './components/LoginScreen';
 import BottomNavigation from './components/BottomNavigation';
+import HomeScreen from './components/HomeScreen';
 
 // Helper to add a unique ID to recipes
 const addIdToRecipes = (recipes: Omit<Recipe, 'id'>[]): Recipe[] => {
@@ -511,24 +511,32 @@ const App: React.FC = () => {
   }, [userSettings, selectedMealTypes, updateUsageCount]);
 
   const handleBottomNavigation = (view: 'home' | 'recipes' | 'planning' | 'settings') => {
-    setCurrentBottomNavView(view);
-    
     switch (view) {
       case 'home':
+        // Apenas o Home reseta o estado
+        setCurrentBottomNavView(view);
         setAppState(AppState.IDLE);
         setSelectedRecipe(null);
         setIsSavedModalOpen(false);
         setIsSettingsModalOpen(false);
+        // Reset para limpar qualquer estado anterior
+        setRecipes([]);
+        setMarketRecipes([]);
+        setWeeklyPlan(null);
+        setError(null);
+        setIsRegionLockedError(false);
         break;
       case 'recipes':
+        // Não muda currentBottomNavView, apenas abre o modal
         setIsSavedModalOpen(true);
         break;
       case 'planning':
+        // Não muda currentBottomNavView, apenas abre o modal
         setIsSettingsModalOpen(true);
         setInitialSettingsTab('preferences');
-        // Pode ser expandido para uma tela específica de planejamento no futuro
         break;
       case 'settings':
+        // Não muda currentBottomNavView, apenas abre o modal
         setIsSettingsModalOpen(true);
         setInitialSettingsTab('preferences');
         break;
@@ -678,6 +686,8 @@ const App: React.FC = () => {
     setAppState(AppState.IDLE);
     setAppMode(null);
     setResultsMode(ResultsMode.USE_WHAT_I_HAVE);
+    // Garantir que volta para a home da nova UI
+    setCurrentBottomNavView('home');
   };
 
   const handleDismissFlavorProfilePrompt = () => {
@@ -734,228 +744,25 @@ const App: React.FC = () => {
 
     switch (appState) {
       case AppState.IDLE:
-        const ingredientsIcon = (
-          <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
-              <path d="M5 10h14"/>
-              <path d="M8 6v-1"/>
-          </svg>
-        );
-        const dishPhotoIcon = (
-          <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            <path d="M11 5a6 6 0 0 0-6 6"/>
-          </svg>
-        );
-        const leftoversIcon = (
-          <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-             <path d="M12 3v2.35M16.24 7.76l-1.78 1.79M18.6 12h-2.35M16.24 16.24l-1.78-1.79M12 18.6v2.35M7.76 16.24l1.79-1.78M5.4 12H3.05M7.76 7.76l1.79 1.78"/>
-          </svg>
-        );
-        const kitchenIcon = (
-          <svg className="mx-auto h-12 w-12 text-slate-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 15h2c1.1-1.4 2.3-2.5 3.5-3.5s2.6-1.8 4-2.5V3h3v6c-1.4.7-2.8 1.5-4 2.5s-2.4 2.1-3.5 3.5H2v3h4.6c.3.5.7 1 1.1 1.5.4.5.9.9 1.4 1.2" />
-            <path d="M22 15h-2c-1.1-1.4-2.3-2.5-3.5-3.5s-2.6-1.8-4-2.5V3h-3v6c1.4.7 2.8 1.5 4 2.5s2.4 2.1 3.5 3.5h5v3h-4.6c-.3.5-.7 1-1.1 1.5-.4.5-.9.9-1.4 1.2" />
-            <path d="M5 22h14" />
-          </svg>
-        );
-
+        // Renderizar HomeScreen apenas no estado IDLE, independente do currentBottomNavView
         return (
-          <>
-            {/* Header */}
-            <div className="text-center mb-10">
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 mb-4">O que vamos cozinhar hoje?</h2>
-              <p className="text-lg sm:text-xl leading-relaxed text-gray-600">
-                Filtre por tipo de refeição se desejar
-              </p>
-            </div>
-            
-            {/* Meal Type Selector - Pills */}
-            <div className="w-full max-w-lg mb-12">
-              <MealTypeSelector
-                selectedMeals={selectedMealTypes}
-                onChange={setSelectedMealTypes}
-              />
-            </div>
-
-            {/* Main Camera Card - Destaque */}
-            <div className="w-full max-w-md mb-12">
-              {/* Hidden file input for card click */}
-              <input 
-                id="card-file-input" 
-                type="file" 
-                accept="image/*" 
-                capture="environment"
-                multiple 
-                className="hidden" 
-                onChange={(e) => { 
-                  const files = e.target.files ? Array.from(e.target.files) : []; 
-                  if (files.length) handleUnifiedImageUpload(files); 
-                  e.currentTarget.value = ''; 
-                }} 
-              />
-
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => document.getElementById('card-file-input')?.click()}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); document.getElementById('card-file-input')?.click(); } }}
-                className="bg-white rounded-2xl shadow-lg p-12 text-center border border-gray-100 hover:bg-orange-50 cursor-pointer"
-              >
-                {/* Large Camera Icon */}
-                <div className="mb-10">
-                  <div className="mx-auto w-36 h-36 bg-orange-50 rounded-full flex items-center justify-center shadow-inner">
-                    <svg className="w-20 h-20 text-[#FF7043]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                </div>
-                
-                {/* Main Title */}
-                <h3 className="text-2xl font-semibold text-gray-900 mb-4">Fotografe sua geladeira</h3>
-                <p className="text-gray-600 mb-6 leading-relaxed">Identifique seus ingredientes e receba receitas personalizadas na hora</p>
-                
-                {/* Main Camera Button */}
-                <ImageUploader 
-                  onImageUpload={handleUnifiedImageUpload}
-                  multiple={true}
-                  maxFiles={5}
-                  uploadText="📸 Começar agora"
-                  uploadSubtext=""
-                  customButtonStyle="w-full bg-[#FF7043] hover:bg-[#e55d3a] text-white font-semibold py-6 px-10 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border-0 text-lg"
-                  disabled={!hasAccess}
-                />
-                
-                {/* Manual Input Link */}
-                <div className="mt-6">
-                  <button 
-                    onClick={() => document.getElementById('manual-input')?.scrollIntoView({ behavior: 'smooth' })}
-                    className="text-sm text-gray-500 hover:text-gray-700 underline transition-colors font-medium"
-                  >
-                    Prefiro digitar os ingredientes
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Secondary Options */}
-            <div className="w-full max-w-md space-y-4 mb-8">
-              {/* Dish Photo Option */}
-              <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 hover:shadow-lg transition-shadow duration-300">
-                <div className="flex items-center space-x-6">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center">
-                      <svg className="w-9 h-9 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2h4a1 1 0 011 1v1a1 1 0 01-1 1v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7a1 1 0 01-1-1V5a1 1 0 011-1h4zM9 3v1h6V3H9zm3 8a3 3 0 100 6 3 3 0 000-6z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Que prato é esse?</h4>
-                    <p className="text-sm text-gray-600">Descubra a receita fotografando um prato pronto</p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <ImageUploader 
-                      onImageUpload={handleUnifiedImageUpload}
-                      multiple={false}
-                      maxFiles={1}
-                      uploadText="📷"
-                      uploadSubtext=""
-                      customButtonStyle="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-4 px-6 rounded-2xl border border-gray-300 transition-all duration-200 hover:shadow-md"
-                      disabled={!hasAccess}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Leftovers Option */}
-              <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 hover:shadow-lg transition-shadow duration-300">
-                <div className="flex items-center space-x-6">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-[#4CAF50] bg-opacity-10 rounded-2xl flex items-center justify-center">
-                      <svg className="w-9 h-9 text-[#4CAF50]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Transformar sobras</h4>
-                    <p className="text-sm text-gray-600">Reaproveite um prato que sobrou de forma criativa</p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <ImageUploader 
-                      onImageUpload={handleLeftoversImageUpload}
-                      multiple={false}
-                      maxFiles={1}
-                      uploadText="🍽️"
-                      uploadSubtext=""
-                      customButtonStyle="bg-[#4CAF50] bg-opacity-10 hover:bg-[#4CAF50] hover:bg-opacity-20 text-[#4CAF50] font-semibold py-4 px-6 rounded-2xl border border-[#4CAF50] border-opacity-30 transition-all duration-200 hover:shadow-md"
-                      disabled={!hasAccess}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Kitchen Setup Option */}
-              <button 
-                onClick={() => handleShowSettings('kitchen')} 
-                className="w-full bg-white rounded-2xl shadow-md border border-gray-100 p-8 hover:shadow-lg hover:border-[#FF7043] hover:border-opacity-30 hover:bg-[#FF7043] hover:bg-opacity-5 transition-all duration-300"
-              >
-                <div className="flex items-center space-x-6">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center">
-                      <svg className="w-9 h-9 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14-7H5a2 2 0 00-2 2v12a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM12 4v16M8 4v16M16 4v16" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-1">Minha cozinha</h4>
-                    <p className="text-sm text-gray-600">Configure seus equipamentos para receitas mais precisas</p>
-                  </div>
-                  <div className="flex-shrink-0">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-            </div>
-            
-            {/* Manual Input Section */}
-            <div id="manual-input" className="w-full max-w-lg">
-              <div className="relative my-8">
-                <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                  <div className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-[#FAFAF5] px-8 py-3 text-sm font-medium text-gray-500 rounded-full">ou digite manualmente</span>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-                <ManualIngredientInput
-                  ingredients={manualIngredients}
-                  onAddIngredient={handleAddManualIngredient}
-                  onRemoveIngredient={handleRemoveManualIngredient}
-                  disabled={!hasAccess}
-                />
-                <div className="mt-6 text-center">
-                  <button
-                    onClick={handleManualSubmit}
-                    disabled={manualIngredients.length === 0 || !hasAccess}
-                    className="w-full sm:w-auto px-12 py-5 border border-transparent text-base font-semibold rounded-2xl text-white bg-[#FF7043] shadow-lg hover:bg-[#e55d3a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-xl"
-                  >
-                    {!hasAccess ? 'Limite diário atingido' : 'Buscar Receitas'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {error && <p className="mt-8 text-center text-red-500 bg-red-50 rounded-2xl p-6 border border-red-200">{error}</p>}
-          </>
+          <HomeScreen
+            onCameraClick={() => document.getElementById('card-file-input')?.click()}
+            onKitchenClick={() => handleShowSettings('kitchen')}
+            onInputSubmit={(ingredients) => {
+              // Handle unified input (array of ingredients)
+              setManualIngredients(ingredients);
+              // Trigger recipe generation with the ingredients
+              startInitialSearch(ingredients);
+            }}
+            onExit={() => {
+              // Handle exit/logout functionality - just reset to initial state
+              handleReset();
+            }}
+            isPro={userProfile?.isPro || false}
+            remainingGenerations={remainingGenerations}
+            onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+          />
         );
       case AppState.ANALYZING:
         return <LoadingView />;
@@ -1011,58 +818,91 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#FAFAF5] pb-20">
-      <Header 
-        onShowSaved={() => setIsSavedModalOpen(true)} 
-        savedRecipesCount={savedRecipes.length}
-        onShowSettings={() => handleShowSettings()}
-      />
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
-            {renderContent()}
+    <div className="min-h-screen flex flex-col font-sans bg-[#FAFAF5]">
+      {/* Renderização unificada - sempre mostra navigation e header */}
+      <div className="pb-20 md:pb-0">
+        <div className="hidden md:block">
+          <BottomNavigation
+            currentView={currentBottomNavView}
+            onNavigate={handleBottomNavigation}
+          />
         </div>
-      </main>
-      <Footer />
-
-      {selectedRecipe && (
-        <RecipeModal 
-            recipe={selectedRecipe} 
-            onClose={() => setSelectedRecipe(null)} 
-            isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
-            onToggleSave={handleToggleSaveRecipe}
-            onUpdateRecipe={handleUpdateSavedRecipe}
-        />
-      )}
+        
+        <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
+              {renderContent()}
+          </div>
+        </main>
+        
+        {/* Footer só é mostrado quando não está no home */}
+        {appState !== AppState.IDLE && <Footer />}
+      </div>
       
-      <SavedRecipesModal
-        isOpen={isSavedModalOpen}
-        onClose={() => setIsSavedModalOpen(false)}
-        savedRecipes={savedRecipes}
-        onToggleSave={handleToggleSaveRecipe}
-        onViewRecipe={(recipe) => {
-          setIsSavedModalOpen(false);
-          setSelectedRecipe(recipe);
-        }}
+      <div className="md:hidden">
+        <BottomNavigation
+          currentView={currentBottomNavView}
+          onNavigate={handleBottomNavigation}
+        />
+      </div>
+
+      {/* Modais sobrepostos com overlay semitransparente */}
+      {(isSavedModalOpen || isSettingsModalOpen || isUpgradeModalOpen || selectedRecipe) && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
+          {/* Modais */}
+          {selectedRecipe && (
+            <RecipeModal 
+                recipe={selectedRecipe} 
+                onClose={() => setSelectedRecipe(null)} 
+                isSaved={savedRecipes.some(r => r.id === selectedRecipe.id)}
+                onToggleSave={handleToggleSaveRecipe}
+                onUpdateRecipe={handleUpdateSavedRecipe}
+            />
+          )}
+          <SavedRecipesModal
+            isOpen={isSavedModalOpen}
+            onClose={() => {
+              setIsSavedModalOpen(false);
+              // Não força volta ao home, mantém o estado atual
+            }}
+            savedRecipes={savedRecipes}
+            onToggleSave={handleToggleSaveRecipe}
+            onViewRecipe={(recipe) => {
+              setIsSavedModalOpen(false);
+              setSelectedRecipe(recipe);
+            }}
+          />
+          <SettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => {
+              setIsSettingsModalOpen(false);
+              // Não força volta ao home, mantém o estado atual
+            }}
+            settings={userSettings}
+            onSave={handleSaveSettings}
+            initialTab={initialSettingsTab}
+          />
+          <UpgradeModal 
+            isOpen={isUpgradeModalOpen}
+            onClose={() => setIsUpgradeModalOpen(false)}
+          />
+        </div>
+      )}
+
+      {/* Hidden file input for HomeScreen camera functionality */}
+      <input 
+        id="card-file-input" 
+        type="file" 
+        accept="image/*" 
+        capture="environment"
+        multiple 
+        className="hidden" 
+        onChange={(e) => { 
+          const files = e.target.files ? Array.from(e.target.files) : []; 
+          if (files.length) handleUnifiedImageUpload(files); 
+          e.currentTarget.value = ''; 
+        }} 
       />
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        settings={userSettings}
-        onSave={handleSaveSettings}
-        initialTab={initialSettingsTab}
-      />
-
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
-
-      {/* Bottom Navigation - Fixed at bottom on mobile */}
-      <BottomNavigation
-        currentView={currentBottomNavView}
-        onNavigate={handleBottomNavigation}
-      />
     </div>
   );
 };

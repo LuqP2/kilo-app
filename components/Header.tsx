@@ -9,6 +9,7 @@ interface HeaderProps {
   onShowSaved: () => void;
   savedRecipesCount: number;
   onShowSettings: () => void;
+  onShowPlanning?: () => void; // Adiciona handler opcional para planejamento
 }
 
 const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowSettings }) => {
@@ -21,9 +22,13 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
         <div className="flex items-center justify-between h-16">
           <div className="flex-1 flex items-center justify-between">
             <div className="flex-shrink-0">
-              <a href="/" aria-label="Kilo - Página Inicial">
-                  <img className="h-10 w-auto" src={logoUrl} alt="Kilo Logo" />
-              </a>
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                aria-label="Kilo - Página Inicial"
+                className="bg-transparent border-none p-0 m-0 cursor-pointer"
+              >
+                <img className="h-10 w-auto" src={logoUrl} alt="Kilo Logo" />
+              </button>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <InstallPWAButton />
@@ -47,7 +52,10 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
                     </div>
                   )}
                   <button
-                    onClick={onShowSaved}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onShowSaved();
+                    }}
                     className="relative inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-md text-slate-600 bg-transparent hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-500" viewBox="0 0 20 20" fill="currentColor">
@@ -61,7 +69,10 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
                     )}
                   </button>
                   <button
-                    onClick={onShowSettings}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onShowSettings();
+                    }}
                     className="inline-flex items-center justify-center h-10 w-10 rounded-md text-slate-600 bg-transparent hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
                     aria-label="Abrir configurações"
                   >
@@ -69,12 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onShowSaved, savedRecipesCount, onShowS
                       <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.532 1.532 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.532 1.532 0 01-.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                     </svg>
                   </button>
-                  <button
-                    onClick={signOutUser}
-                    className="px-4 py-2 text-sm font-semibold rounded-md text-slate-600 bg-slate-100 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
-                  >
-                    Sair
-                  </button>
+                  {/* Botão 'Sair' removido, agora está apenas nas configurações */}
                 </>
               )}
             </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 import { UserSettings, SpiceLevel, FlavorProfile } from '../types';
 import Badge from './Badge';
 
@@ -34,6 +35,7 @@ const PANTRY_STAPLES = [
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onSave, initialTab = 'preferences' }) => {
+    const { signOut } = useAuth();
   const [currentSettings, setCurrentSettings] = useState<UserSettings>(settings);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [customEquipment, setCustomEquipment] = useState('');
@@ -550,18 +552,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings
         </div>
         
         <div className="p-6 bg-slate-50 border-t border-slate-200 flex-shrink-0">
-          {saveError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-800">{saveError}</p>
-            </div>
-          )}
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-semibold rounded-xl shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? 'Salvando...' : 'Salvar'}
-          </button>
+                    {saveError && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="text-sm text-red-800">{saveError}</p>
+                        </div>
+                    )}
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-semibold rounded-xl shadow-sm text-white bg-[#FF7043] hover:bg-[#FF7043]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF7043] disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+                    >
+                        {isSaving ? 'Salvando...' : 'Salvar'}
+                    </button>
+                    <button
+                                    onClick={signOut}
+                                    className="w-full inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-semibold rounded-xl shadow-sm text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 mt-1"
+                                >
+                                    Sair
+                                </button>
         </div>
       </div>
     </div>

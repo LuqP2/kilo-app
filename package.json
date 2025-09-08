@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "firebase": "^12.2.1",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
