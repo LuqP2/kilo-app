@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import './HomeScreen.css';
 import Badge from './Badge';
 
+type SearchMode = 'ingredients' | 'recipe';
+
 interface HomeScreenProps {
   onCameraClick: () => void;
   onKitchenClick: () => void;
-  onInputSubmit: (ingredients: string[]) => void;
+  onInputSubmit: (ingredients: string[], mode?: SearchMode) => void;
   onExit: () => void;
   isPro: boolean;
   remainingGenerations: number;
@@ -42,6 +44,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
+  const [searchMode, setSearchMode] = useState<SearchMode>('ingredients');
 
   const handleAddIngredient = (ingredient: string) => {
     const trimmedIngredient = ingredient.trim();
@@ -57,20 +60,30 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   const handleInputSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
-      // Se contém vírgulas, dividir em múltiplos ingredientes
-      if (inputValue.includes(',')) {
-        const newIngredients = inputValue.split(',').map(i => i.trim()).filter(i => i);
-        newIngredients.forEach(ingredient => handleAddIngredient(ingredient));
+      if (searchMode === 'recipe') {
+        // Para busca por nome de receita, usar diretamente o valor do input
+        onInputSubmit([inputValue.trim()], 'recipe');
+        setInputValue('');
       } else {
-        handleAddIngredient(inputValue.trim());
+        // Para busca por ingredientes, adicionar à lista
+        if (inputValue.includes(',')) {
+          const newIngredients = inputValue.split(',').map(i => i.trim()).filter(i => i);
+          newIngredients.forEach(ingredient => handleAddIngredient(ingredient));
+        } else {
+          handleAddIngredient(inputValue.trim());
+        }
+        setInputValue('');
       }
-      setInputValue('');
     }
   };
 
   const handleSearchRecipes = () => {
-    if (ingredients.length > 0) {
-      onInputSubmit(ingredients);
+    if (searchMode === 'recipe' && inputValue.trim()) {
+      // Para busca por nome de receita, usar o valor do input diretamente
+      onInputSubmit([inputValue.trim()], 'recipe');
+    } else if (searchMode === 'ingredients' && ingredients.length > 0) {
+      // Para busca por ingredientes, usar a lista de ingredientes
+      onInputSubmit(ingredients, 'ingredients');
     }
   };
 
@@ -105,12 +118,36 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           Digite ingredientes, o nome de um prato, ou fotografe o que tiver à mão.
         </p>
 
+        {/* Seletor de modo de busca */}
+        <div className="search-mode-selector">
+          <button
+            type="button"
+            className={`mode-button ${searchMode === 'ingredients' ? 'active' : ''}`}
+            onClick={() => setSearchMode('ingredients')}
+          >
+            Ingredientes
+          </button>
+          <button
+            type="button"
+            className={`mode-button ${searchMode === 'recipe' ? 'active' : ''}`}
+            onClick={() => setSearchMode('recipe')}
+          >
+            Nome do Prato
+          </button>
+        </div>
+
         {/* Campo de busca com ícone da câmera */}
         <form onSubmit={handleInputSubmit} className="search-container">
           <input
             type="text"
             className="search-input"
-            placeholder={ingredients.length > 0 ? "Adicionar mais ingredientes..." : "Ex: Fricassê de frango, arroz, batata"}
+            placeholder={
+              searchMode === 'recipe' 
+                ? "Ex: Fricassê de frango, Lasanha bolonhesa..." 
+                : ingredients.length > 0 
+                  ? "Adicionar mais ingredientes..." 
+                  : "Ex: arroz, frango, batata..."
+            }
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -127,8 +164,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </button>
         </form>
 
-        {/* Lista de ingredientes adicionados */}
-        {ingredients.length > 0 && (
+        {/* Lista de ingredientes adicionados - só para modo ingredientes */}
+        {searchMode === 'ingredients' && ingredients.length > 0 && (
           <div className="ingredients-section">
             <p className="ingredients-label">Ingredientes selecionados:</p>
             <div className="ingredients-list">
@@ -152,8 +189,20 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           </div>
         )}
 
-        {/* Sugestões de ingredientes comuns */}
-        {filteredSuggestions.length > 0 && (
+        {/* Botão de buscar para modo receita */}
+        {searchMode === 'recipe' && inputValue.trim() && (
+          <div className="recipe-search-section">
+            <button 
+              onClick={handleSearchRecipes}
+              className="search-recipes-button"
+            >
+              🔍 Buscar Receita: "{inputValue.trim()}"
+            </button>
+          </div>
+        )}
+
+        {/* Sugestões de ingredientes comuns - só para modo ingredientes */}
+        {searchMode === 'ingredients' && filteredSuggestions.length > 0 && (
           <div className="suggestions-section">
             <p className="suggestions-label">
               {ingredients.length === 0 ? "Ou escolha alguns ingredientes:" : "Sugestões:"}

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Recipe, AppState, ResultsMode, WeeklyPlan, UserSettings, MealType, AppMode, Ingredient, EffortFilter } from './types';
-import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes } from './services/geminiService';
+import { identifyIngredients, getRecipeFromImage, suggestRecipes, suggestSingleRecipe, suggestMarketModeRecipes, generateWeeklyPlan, analyzeRecipeForProfile, classifyImage, suggestLeftoverRecipes, searchRecipeByName } from './services/geminiService';
 import { getRemainingGenerations, FREE_PLAN_LIMIT, checkAndIncrementUsage } from './services/usageService';
 import { compressMultipleImages, shouldCompressImage, isLowMemoryDevice, emergencyCompress } from './utils/imageUtils';
 import { AuthProvider, useAuth } from './AuthContext';
@@ -280,9 +280,9 @@ const App: React.FC = () => {
     }
   }
 
-  const startInitialSearch = useCallback(async (searchIngredients: string[]) => {
+  const startInitialSearch = useCallback(async (searchIngredients: string[], mode: 'ingredients' | 'recipe' = 'ingredients') => {
     if (searchIngredients.length === 0) return;
-  console.debug('[App] startInitialSearch called with', searchIngredients);
+  console.debug('[App] startInitialSearch called with', searchIngredients, 'mode:', mode);
     setAppState(AppState.ANALYZING);
     setError(null);
     setIsRegionLockedError(false);
@@ -296,8 +296,15 @@ const App: React.FC = () => {
 
     try {
       if (searchIngredients.length > 0) {
-        const suggested = await suggestRecipes(searchIngredients, [], userSettings, selectedMealTypes);
-        setRecipes(addIdToRecipes(suggested));
+        if (mode === 'recipe') {
+          // Para busca por nome de receita, usar função específica
+          const suggested = await searchRecipeByName(searchIngredients[0], userSettings, selectedMealTypes);
+          setRecipes(addIdToRecipes(suggested));
+        } else {
+          // Para busca por ingredientes, usar função existente
+          const suggested = await suggestRecipes(searchIngredients, [], userSettings, selectedMealTypes);
+          setRecipes(addIdToRecipes(suggested));
+        }
         updateUsageCount();
       }
       setAppState(AppState.SHOWING_RESULTS);
@@ -377,7 +384,7 @@ const App: React.FC = () => {
           setAppMode(AppMode.INGREDIENTS);
           const foundIngredients = await identifyIngredients(filesToProcess);
           updateUsageCount();
-          await startInitialSearch(foundIngredients);
+          await startInitialSearch(foundIngredients, 'ingredients');
       } else {
           const file = filesToProcess[0];
           const imageType = await classifyImage(file);
@@ -397,7 +404,7 @@ const App: React.FC = () => {
               setAppMode(AppMode.INGREDIENTS);
               const foundIngredients = await identifyIngredients(filesToProcess);
               updateUsageCount();
-              await startInitialSearch(foundIngredients);
+              await startInitialSearch(foundIngredients, 'ingredients');
           }
       }
     } catch (e) {
@@ -484,7 +491,7 @@ const App: React.FC = () => {
       return;
     }
 
-    await startInitialSearch(manualIngredients);
+    await startInitialSearch(manualIngredients, 'ingredients');
   }, [manualIngredients, startInitialSearch, userProfile]);
 
 
@@ -750,11 +757,11 @@ const App: React.FC = () => {
           <HomeScreen
             onCameraClick={() => document.getElementById('card-file-input')?.click()}
             onKitchenClick={() => handleShowSettings('kitchen')}
-            onInputSubmit={(ingredients) => {
-              // Handle unified input (array of ingredients)
+            onInputSubmit={(ingredients, mode) => {
+              // Handle unified input (array of ingredients) with mode
               setManualIngredients(ingredients);
-              // Trigger recipe generation with the ingredients
-              startInitialSearch(ingredients);
+              // Trigger recipe generation with the ingredients and mode
+              startInitialSearch(ingredients, mode);
             }}
             onExit={() => {
               // Handle exit/logout functionality - just reset to initial state

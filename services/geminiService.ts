@@ -551,6 +551,52 @@ export async function getTechniqueExplanation(techniqueName: string): Promise<st
   }
 }
 
+export async function searchRecipeByName(recipeName: string, settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
+  validateIngredients([recipeName]); // Reuse validation for single string
+  const personalizationPrompt = buildPersonalizationPrompt(settings);
+  const mealTypePrompt = buildMealTypePrompt(mealTypes);
+
+  let pantryPrompt: string;
+  if (settings.pantryStaples && settings.pantryStaples.length > 0) {
+      pantryPrompt = `Você pode assumir que o usuário tem os seguintes itens básicos de despensa: ${settings.pantryStaples.join(', ')}, e água.`;
+  } else {
+      pantryPrompt = `Assuma que o usuário tem apenas itens básicos como água, sal e óleo.`;
+  }
+
+  // Prompt específico para busca por nome de receita
+  const recipeSearchInstruction = `Sua tarefa é gerar a receita completa e detalhada para o seguinte prato: "${recipeName}". Forneça a receita tradicional/clássica deste prato, incluindo todos os ingredientes necessários e modo de preparo completo. Seja específico e detalhado nas instruções.`;
+  
+  const preparationInstruction = `Forneça um modo de preparo completo e detalhado, em formato de lista numerada. Não presuma que o usuário tem conhecimento prévio de cozinha. Se um ingrediente precisa ser preparado antes (ex: cozinhar arroz, demolhar feijão), o primeiro passo da receita DEVE ser a instrução para preparar este ingrediente. Seja explícito em cada etapa.`;
+
+  const basePrompt = `${recipeSearchInstruction} ${pantryPrompt} ${preparationInstruction}`;
+  const recipeDetailInstruction = "As instruções 'howToPrepare' devem ser detalhadas e fáceis de seguir para um cozinheiro iniciante.";
+
+  const prompt = `${basePrompt} ${personalizationPrompt} ${mealTypePrompt} Com base nisso, gere a receita completa em português do Brasil, que por padrão sirva 2 pessoas. ${concisenessPrompt} ${recipeDetailInstruction} Forneça a resposta como um array JSON com 1 objeto de receita. O objeto deve seguir o schema, especialmente para 'ingredientsNeeded' (array de objetos), 'howToPrepare' (array de strings), 'commonQuestions' (array de 1 string), uma estimativa de 'calories' por porção, 'totalTime' em minutos, 'tags' descritivas, e um array opcional 'techniques'.`;
+
+  // Proxy to backend function
+  try {
+    const token = await getAuthToken();
+    const resp = await fetch(`${FUNCTIONS_BASE}/searchRecipeByName`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ recipeName, settings, mealTypes })
+    });
+
+    if (!resp.ok) {
+      console.error('searchRecipeByName failed', await resp.text());
+      return [];
+    }
+
+    const body = await resp.json();
+    const jsonString = (body.text || '').trim();
+    const recipes = JSON.parse(jsonString) as ApiRecipe[];
+    return recipes;
+  } catch (e) {
+    console.error('Failed to fetch/parse recipe by name from function', e);
+    return [];
+  }
+}
+
 async function getAuthToken(): Promise<string | null> {
   try {
     const user = auth.currentUser;

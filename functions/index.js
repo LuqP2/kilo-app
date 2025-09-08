@@ -315,6 +315,47 @@ app.post('/suggestMarketModeRecipes', async (req, res) => {
   }
 });
 
+app.post('/searchRecipeByName', async (req, res) => {
+  try {
+    const { recipeName, settings, mealTypes } = req.body;
+    if (!recipeName || typeof recipeName !== 'string') {
+      return res.status(400).json({ error: 'recipeName required' });
+    }
+    
+    const personalizationPrompt = buildPersonalizationPrompt(settings || {});
+    const mealTypePrompt = buildMealTypePrompt(mealTypes || []);
+    
+    // Prompt específico para busca por nome de receita
+    const recipeSearchInstruction = `Sua tarefa é gerar a receita completa e detalhada para o seguinte prato: "${recipeName}". Forneça a receita tradicional/clássica deste prato, incluindo todos os ingredientes necessários e modo de preparo completo. Seja específico e detalhado nas instruções.`;
+    
+    const pantryPrompt = settings && settings.pantryStaples && settings.pantryStaples.length > 0
+      ? `Você pode assumir que o usuário tem os seguintes itens básicos: ${settings.pantryStaples.join(', ')}, e água.`
+      : `Assuma que o usuário tem apenas itens básicos como água, sal e óleo.`;
+    
+    const prompt = `${SAFETY_INSTRUCTIONS}${recipeSearchInstruction} ${pantryPrompt} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça a receita completa em português do Brasil, que por padrão sirva 2 pessoas. Responda com um array JSON contendo 1 objeto de receita. O objeto DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded, howToPrepare, servings, calories, totalTime, tags. Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
+    
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('GEMINI_API_KEY environment variable not set.');
+      res.status(500).send({ error: 'GEMINI_API_KEY environment variable not set.' });
+      return;
+    }
+    
+    const genAI = new GoogleGenAI({ apiKey });
+    const modelClient = genAI.models || genAI;
+    const response = await modelClient.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: prompt }] },
+      config: { responseMimeType: 'application/json' }
+    });
+    
+    return res.json({ text: response.text });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e) });
+  }
+});
+
 app.post('/generateWeeklyPlan', async (req, res) => {
   try {
     const { ingredients, duration, settings, mealTypes } = req.body;
