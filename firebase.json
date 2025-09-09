@@ -33,5 +33,10 @@
       ],
       "runtime": "nodejs20"
     }
-  ]
+  ],
+  "emulators": {
+    "functions": {
+      "port": 5001
+    }
+  }
 }

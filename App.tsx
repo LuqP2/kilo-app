@@ -778,6 +778,7 @@ const App: React.FC = () => {
             isPro={userProfile?.isPro || false}
             remainingGenerations={remainingGenerations}
             onUpgradeClick={() => setIsUpgradeModalOpen(true)}
+            error={error}
           />
         );
       case AppState.ANALYZING:

@@ -552,7 +552,7 @@ export async function getTechniqueExplanation(techniqueName: string): Promise<st
 }
 
 export async function searchRecipeByName(recipeName: string, settings: UserSettings, mealTypes: MealType[]): Promise<ApiRecipe[]> {
-  validateIngredients([recipeName]); // Reuse validation for single string
+  // Note: We don't validate recipeName as ingredients since it's just a search term
   const personalizationPrompt = buildPersonalizationPrompt(settings);
   const mealTypePrompt = buildMealTypePrompt(mealTypes);
 
@@ -589,6 +589,7 @@ export async function searchRecipeByName(recipeName: string, settings: UserSetti
 
     const body = await resp.json();
     const jsonString = (body.text || '').trim();
+    console.log('searchRecipeByName response:', jsonString);
     const recipes = JSON.parse(jsonString) as ApiRecipe[];
     return recipes;
   } catch (e) {

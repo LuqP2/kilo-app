@@ -13,6 +13,7 @@ interface HomeScreenProps {
   isPro: boolean;
   remainingGenerations: number;
   onUpgradeClick: () => void;
+  error?: string | null;
 }
 
 const COMMON_INGREDIENTS = [
@@ -41,7 +42,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
   onExit,
   isPro,
   remainingGenerations,
-  onUpgradeClick
+  onUpgradeClick,
+  error
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -225,6 +227,21 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="error-message" style={{
+            backgroundColor: '#fee',
+            border: '1px solid #fcc',
+            borderRadius: '8px',
+            padding: '12px',
+            margin: '16px 0',
+            color: '#c33',
+            textAlign: 'center'
+          }}>
+            <p style={{ margin: 0, fontSize: '14px' }}>{error}</p>
           </div>
         )}
 
