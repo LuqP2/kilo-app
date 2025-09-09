@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './HomeScreen.css';
 import Badge from './Badge';
+import logoUrl from '../src/assets/logo.svg';
 
 type SearchMode = 'ingredients' | 'recipe';
 
@@ -158,9 +159,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             onClick={onCameraClick}
             title="Fotografar ingredientes"
           >
-            <svg className="camera-icon" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M9 2l1.5 1.5H15c1.1 0 2 .9 2 2v13c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5.5c0-1.1.9-2 2-2h4.5L9 2zM12 17c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm0-8c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3z"/>
-            </svg>
+            <img 
+              src={logoUrl}
+              alt="Kilo Logo"
+              className="logo-icon"
+              style={{ 
+                width: '22px', 
+                height: '22px',
+                filter: 'brightness(0) invert(1)' // Transforma em branco
+              }}
+            />
           </button>
         </form>
 

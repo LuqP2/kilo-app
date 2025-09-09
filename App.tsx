@@ -20,6 +20,7 @@ import UpgradeModal from './components/UpgradeModal';
 import LoginScreen from './components/LoginScreen';
 import BottomNavigation from './components/BottomNavigation';
 import HomeScreen from './components/HomeScreen';
+import RecipeDetailView from './components/RecipeDetailView';
 
 // Helper to add a unique ID to recipes
 const addIdToRecipes = (recipes: Omit<Recipe, 'id'>[]): Recipe[] => {
@@ -66,6 +67,7 @@ const App: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [marketRecipes, setMarketRecipes] = useState<Recipe[]>([]);
   const [weeklyPlan, setWeeklyPlan] = useState<WeeklyPlan | null>(null);
+  const [detailedRecipe, setDetailedRecipe] = useState<Recipe | null>(null);
   
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
   const [appMode, setAppMode] = useState<AppMode | null>(null);
@@ -299,15 +301,21 @@ const App: React.FC = () => {
         if (mode === 'recipe') {
           // Para busca por nome de receita, usar função específica
           const suggested = await searchRecipeByName(searchIngredients[0], userSettings, selectedMealTypes);
-          setRecipes(addIdToRecipes(suggested));
+          if (suggested.length > 0) {
+            setDetailedRecipe(addIdToRecipe(suggested[0]));
+            setAppState(AppState.SHOWING_DETAILED_RECIPE);
+          } else {
+            setError('Nenhuma receita encontrada para esta busca.');
+            setAppState(AppState.IDLE);
+          }
         } else {
           // Para busca por ingredientes, usar função existente
           const suggested = await suggestRecipes(searchIngredients, [], userSettings, selectedMealTypes);
           setRecipes(addIdToRecipes(suggested));
+          setAppState(AppState.SHOWING_RESULTS);
         }
         updateUsageCount();
       }
-      setAppState(AppState.SHOWING_RESULTS);
     } catch (e) {
       handleApiError(e);
       setAppState(AppState.IDLE);
@@ -820,6 +828,8 @@ const App: React.FC = () => {
             hasGenerationsLeft={hasAccess}
           />
         );
+      case AppState.SHOWING_DETAILED_RECIPE:
+        return <RecipeDetailView recipe={detailedRecipe} onBack={handleReset} />;
       default:
         return null;
     }

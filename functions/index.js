@@ -332,7 +332,7 @@ app.post('/searchRecipeByName', async (req, res) => {
       ? `Você pode assumir que o usuário tem os seguintes itens básicos: ${settings.pantryStaples.join(', ')}, e água.`
       : `Assuma que o usuário tem apenas itens básicos como água, sal e óleo.`;
     
-    const prompt = `${SAFETY_INSTRUCTIONS}${recipeSearchInstruction} ${pantryPrompt} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça a receita completa em português do Brasil, que por padrão sirva 2 pessoas. Responda com um array JSON contendo 1 objeto de receita. O objeto DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded, howToPrepare, servings, calories, totalTime, tags. Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
+    const prompt = `${SAFETY_INSTRUCTIONS}${recipeSearchInstruction} ${pantryPrompt} ${personalizationPrompt} ${mealTypePrompt} ${concisenessPrompt} Forneça a receita completa em português do Brasil, que por padrão sirva 2 pessoas. Responda com um array JSON contendo 1 objeto de receita. O objeto DEVE seguir estritamente o schema de chaves em INGLÊS que o frontend espera: recipeName, description, ingredientsNeeded (array de objetos com name, quantity e unit), howToPrepare (array de strings), servings (número), calories (número de calorias por porção), totalTime (tempo total em minutos, apenas o número, sem texto), tags (array de strings). IMPORTANTE: Para totalTime, forneça APENAS o número de minutos, sem palavras como "minutos" ou "min". Exemplo: 60 (não "60 minutos"). Lembrete final e regra mais importante: a totalidade da sua resposta, incluindo todos os valores de chave como recipeName, description, tags, e howToPrepare, DEVE ser em português do Brasil.`;
     
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -346,7 +346,43 @@ app.post('/searchRecipeByName', async (req, res) => {
     const response = await modelClient.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [{ text: prompt }] },
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              recipeName: { type: Type.STRING },
+              description: { type: Type.STRING },
+              ingredientsNeeded: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    quantity: { type: Type.STRING },
+                    unit: { type: Type.STRING }
+                  },
+                  required: ['name', 'quantity', 'unit']
+                }
+              },
+              howToPrepare: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              servings: { type: Type.NUMBER },
+              calories: { type: Type.NUMBER },
+              totalTime: { type: Type.NUMBER },
+              tags: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ['recipeName', 'description', 'ingredientsNeeded', 'howToPrepare', 'servings', 'calories', 'totalTime', 'tags']
+          }
+        }
+      }
     });
     
     return res.json({ text: response.text });

@@ -78,6 +78,7 @@ export enum AppState {
   IDLE,
   ANALYZING,
   SHOWING_RESULTS,
+  SHOWING_DETAILED_RECIPE,
 }
 
 export enum ResultsMode {
