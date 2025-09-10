@@ -21,6 +21,7 @@ import LoginScreen from './components/LoginScreen';
 import BottomNavigation from './components/BottomNavigation';
 import HomeScreen from './components/HomeScreen';
 import RecipeDetailView from './components/RecipeDetailView';
+import OnboardingModal from './components/OnboardingModal';
 
 // Helper to add a unique ID to recipes
 const addIdToRecipes = (recipes: Omit<Recipe, 'id'>[]): Recipe[] => {
@@ -102,6 +103,10 @@ const App: React.FC = () => {
   // Adicione os estados locais para appliances e utensils
   const [appliances, setAppliances] = useState<string[]>([]);
   const [utensils, setUtensils] = useState<string[]>([]);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(
+    import.meta.env.VITE_DEBUG_ONBOARDING === 'true' || false
+  );
 
   const updateUsageCount = useCallback(() => {
     const remaining = getRemainingGenerations(userProfile?.isPro || false);
@@ -735,6 +740,33 @@ const App: React.FC = () => {
     }
   }, [updateUserProfile]);
 
+  const handleOnboardingComplete = (data: {
+    kitchenEquipment: string[];
+    preferences: {
+      isVegetarian: boolean;
+      isVegan: boolean;
+      isGlutenFree: boolean;
+      isLactoseFree: boolean;
+    };
+  }) => {
+    const updatedSettings = {
+      ...userSettings,
+      kitchenEquipment: data.kitchenEquipment,
+      ...data.preferences,
+    };
+
+    setUserSettings(updatedSettings);
+    updateUserProfile({ onboardingCompleted: true });
+    setIsOnboardingOpen(false);
+    setShowOnboarding(false);
+  };
+
+  useEffect(() => {
+    if (userProfile && !userProfile.onboardingCompleted) {
+      setIsOnboardingOpen(true);
+    }
+  }, [userProfile]);
+
   const hasAccess = userProfile?.isPro || (FREE_PLAN_LIMIT - (userProfile?.generationsUsed || 0)) > 0;
 
   const renderContent = () => {
@@ -863,7 +895,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Modais sobrepostos com overlay semitransparente */}
-      {(isSavedModalOpen || isSettingsModalOpen || isUpgradeModalOpen || selectedRecipe) && (
+      {(isSavedModalOpen || isSettingsModalOpen || isUpgradeModalOpen || selectedRecipe || isOnboardingOpen || showOnboarding) && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-10">
           {/* Modais */}
           {selectedRecipe && (
@@ -902,6 +934,15 @@ const App: React.FC = () => {
             isOpen={isUpgradeModalOpen}
             onClose={() => setIsUpgradeModalOpen(false)}
           />
+          {(isOnboardingOpen || showOnboarding) && (
+            <OnboardingModal 
+              onComplete={handleOnboardingComplete} 
+              onSkip={() => {
+                setIsOnboardingOpen(false);
+                setShowOnboarding(false);
+              }}
+            />
+          )}
         </div>
       )}
 

@@ -1,0 +1,28 @@
+/* OnboardingModal.css - Minimal custom styles for the onboarding modal */
+
+/* Custom animations for the modal */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.onboarding-modal {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Smooth transitions for step content */
+.step-content {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Custom focus styles that match the app's design */
+.onboarding-button:focus {
+  outline: 2px solid #fb923c;
+  outline-offset: 2px;
+}

@@ -1,0 +1,59 @@
+completed	success	Implement code changes to enhance functionality and improve performance	Deploy to Firebase Hosting on merge	main	push	17568564925	1m16s	2025-09-09T01:05:09Z
+completed	success	Add RecipeDetailView component and update AppState enum	Deploy to Firebase Hosting on merge	main	push	17568233577	1m18s	2025-09-09T00:46:17Z
+completed	success	feat: Add search functionality for recipes by name, including UI upda…	Deploy to Firebase Hosting on merge	main	push	17567199678	1m4s	2025-09-08T23:41:57Z
+completed	success	Implement code changes to enhance functionality and improve performan…	Deploy to Firebase Hosting on merge	main	push	17566446597	1m22s	2025-09-08T23:02:01Z
+completed	success	feat: Integrate Header component into App layout, enhancing navigatio…	Deploy to Firebase Hosting on merge	main	push	17565696397	1m30s	2025-09-08T22:19:15Z
+completed	success	Refactor ResultsView component: remove RecipeCardActions, simplify st…	Deploy to Firebase Hosting on merge	main	push	17564266905	1m37s	2025-09-08T21:12:33Z
+completed	success	feat: Add signOut function to AuthContext for user logout functionality	Deploy to Firebase Hosting on merge	main	push	17563146644	1m24s	2025-09-08T20:24:45Z
+completed	success	feat: Improve error handling in updateUserProfile function to support…	Deploy to Firebase Hosting on merge	main	push	17562857654	1m34s	2025-09-08T20:12:45Z
+completed	success	feat: update Header component to include optional planning handler an…	Deploy to Firebase Hosting on merge	main	push	17562460248	1m21s	2025-09-08T19:55:50Z
+completed	success	feat: Enhance image compression utility with low memory detection and…	Deploy to Firebase Hosting on merge	main	push	17506524776	1m28s	2025-09-05T23:15:29Z
+completed	success	feat: Implement image compression utility to optimize mobile image ha…	Deploy to Firebase Hosting on merge	main	push	17506325164	1m25s	2025-09-05T23:02:36Z
+completed	success	feat: Add mobile camera input and enhance MealTypeSelector UI	Deploy to Firebase Hosting on merge	main	push	17505959889	1m17s	2025-09-05T22:34:50Z
+completed	success	feat: Enhance SettingsModal with allergy management and UI improvements	Deploy to Firebase Hosting on merge	main	push	17503562961	1m25s	2025-09-05T20:17:55Z
+completed	success	feat: Exclude basic ingredients for dessert recipes in recipe suggest…	Deploy to Firebase Hosting on merge	main	push	17501690143	1m13s	2025-09-05T18:42:15Z
+completed	success	feat: Implement BottomNavigation component for improved navigation	Deploy to Firebase Hosting on merge	main	push	17501397920	2m53s	2025-09-05T18:27:59Z
+completed	success	feat: Enhance ingredient handling in RecipeModal with parsing and con…	Deploy to Firebase Hosting on merge	main	push	17499677381	1m23s	2025-09-05T17:06:36Z
+completed	success	Add Firestore indexes and security rules	Deploy to Firebase Hosting on merge	main	push	17499334279	1m27s	2025-09-05T16:49:58Z
+completed	success	feat: Refactor usage tracking to incorporate user plan in generation …	Deploy to Firebase Hosting on merge	main	push	17480954934	1m7s	2025-09-05T01:22:01Z
+completed	success	feat: Import FREE_PLAN_LIMIT constant for usage tracking in Header co…	Deploy to Firebase Hosting on merge	main	push	17480834253	1m20s	2025-09-05T01:14:38Z
+completed	success	feat: Add safety instructions and persona guidelines for recipe gener…	Deploy to Firebase Hosting on merge	main	push	17480746713	1m19s	2025-09-05T01:09:14Z
+completed	success	feat: Add safety instructions and persona guidelines for recipe gener…	Deploy to Firebase Hosting on merge	main	push	17480596772	1m23s	2025-09-05T00:59:55Z
+completed	success	feat: Implement user authentication flow with Google sign-in and load…	Deploy to Firebase Hosting on merge	main	push	17478010262	1m9s	2025-09-04T22:14:22Z
+completed	success	feat: Centralize usage check in image upload handlers	Deploy to Firebase Hosting on merge	main	push	17466264641	1m11s	2025-09-04T13:56:03Z
+completed	success	fix(ci): Remove Gemini API key from frontend build	Deploy to Firebase Hosting on merge	main	push	17465825733	1m13s	2025-09-04T13:41:04Z
+completed	success	feat(core): Implement and validate end-to-end API communication	Deploy to Firebase Hosting on merge	main	push	17465495907	1m3s	2025-09-04T13:29:27Z
+completed	success	fix(deps): Update vite-plugin-pwa to latest stable version	Deploy to Firebase Hosting on merge	main	push	17462079877	1m7s	2025-09-04T11:15:49Z
+completed	failure	fix(build): Move build plugins to dependencies for CI	Deploy to Firebase Hosting on merge	main	push	17461973197	16s	2025-09-04T11:11:30Z
+completed	failure	feat: add PWA support and service worker configuration	Deploy to Firebase Hosting on merge	main	push	17461633890	20s	2025-09-04T10:57:23Z
+completed	success	feat: Enhance ingredient management by incorporating basic pantry items	Deploy to Firebase Hosting on merge	main	push	17415825740	55s	2025-09-02T20:59:59Z
+completed	success	PWA	Deploy to Firebase Hosting on merge	main	push	17415406496	2m34s	2025-09-02T20:38:33Z
+completed	success	fix(pwa): Force generation of new service worker to bypass legacy fil…	Deploy to Firebase Hosting on merge	main	push	17414898984	1m6s	2025-09-02T20:15:27Z
+completed	success	Fix: Remove legacy manifest link from index.html	Deploy to Firebase Hosting on merge	main	push	17414508854	1m23s	2025-09-02T19:58:12Z
+completed	success	Refactor code structure for improved readability and maintainability	Deploy to Firebase Hosting on merge	main	push	17414316427	1m18s	2025-09-02T19:48:10Z
+completed	success	feat: Enhance ingredient management by incorporating basic pantry items	Deploy to Firebase Hosting on merge	main	push	17414254337	1m0s	2025-09-02T19:45:11Z
+completed	success	Fix: Remove legacy PWA files to resolve manifest conflict	Deploy to Firebase Hosting on merge	main	push	17414151389	1m12s	2025-09-02T19:39:54Z
+completed	success	Refactor code structure for improved readability and maintainability	Deploy to Firebase Hosting on merge	main	push	17413972195	1m20s	2025-09-02T19:31:50Z
+completed	success	feat: Enhance ingredient management by incorporating basic pantry items	Deploy to Firebase Hosting on merge	main	push	17411294246	1m12s	2025-09-02T17:31:07Z
+completed	success	fix: Refine Gemini prompt to enforce strict ingredients and detailed …	Deploy to Firebase Hosting on merge	main	push	17410760826	1m2s	2025-09-02T17:08:24Z
+completed	success	feat: Implement persistence for My Kitchen	Deploy to Firebase Hosting on merge	main	push	17405986400	1m8s	2025-09-02T14:02:13Z
+completed	success	feat: Enhance AuthContext to manage user profiles and loading state	Deploy to Firebase Hosting on merge	main	push	17404304850	1m6s	2025-09-02T13:00:29Z
+completed	success	Config: Adjust hosting headers to allow auth popups	Deploy to Firebase Hosting on merge	main	push	17403916793	52s	2025-09-02T12:45:21Z
+completed	success	CI: Provide all environment variables to build	Deploy to Firebase Hosting on merge	main	push	17403634749	1m4s	2025-09-02T12:34:07Z
+completed	success	CI: Fix typo in firebase service account secret name	Deploy to Firebase Hosting on merge	main	push	17403514426	56s	2025-09-02T12:29:21Z
+completed	success	Fix: Corrige case sensitivity do nome do arquivo firebaseConfig	Deploy to Firebase Hosting on merge	main	push	17403381243	55s	2025-09-02T12:24:06Z
+completed	failure	build: Add file listing step for diagnostics	Deploy to Firebase Hosting on merge	main	push	17403310615	22s	2025-09-02T12:21:19Z
+completed	failure	fix: Add explicit .ts extension to all firebaseConfig imports	Deploy to Firebase Hosting on merge	main	push	17403163541	15s	2025-09-02T12:15:25Z
+completed	failure	feat: Implement user authentication with Google and Firestore persist…	Deploy to Firebase Hosting on merge	main	push	17403018107	19s	2025-09-02T12:09:41Z
+completed	success	Feat: Effort Filters	Deploy to Firebase Hosting on merge	main	push	17390841542	1m0s	2025-09-02T01:42:48Z
+completed	success	Revert "feat: Add effort filters and enhance recipe suggestion functi…	Deploy to Firebase Hosting on merge	main	push	17390544638	1m13s	2025-09-02T01:22:34Z
+completed	success	feat: Add effort filters and enhance recipe suggestion functionality	Deploy to Firebase Hosting on merge	main	push	17390354579	54s	2025-09-02T01:09:08Z
+completed	success	fix: Add environment variable type definitions for Vite	Deploy to Firebase Hosting on merge	main	push	17386609422	57s	2025-09-01T20:26:09Z
+completed	success	deploy: Final verification of secrets	Deploy to Firebase Hosting on merge	main	push	17386353252	1m0s	2025-09-01T20:08:52Z
+completed	success	build: Add verification step for API key	Deploy to Firebase Hosting on merge	main	push	17386206105	52s	2025-09-01T19:59:13Z
+completed	success	fix: Brute-force injection of environment variables	Deploy to Firebase Hosting on merge	main	push	17386132005	59s	2025-09-01T19:52:52Z
+completed	success	deploy: Finalize and correct production workflow	Deploy to Firebase Hosting on merge	main	push	17386090654	53s	2025-09-01T19:49:53Z
+completed	success	fix: Explicitly create .env file during build process	Deploy to Firebase Hosting on merge	main	push	17385871481	48s	2025-09-01T19:33:59Z
+completed	success	fix: Correct syntax in production deploy workflow	Deploy to Firebase Hosting on merge	main	push	17385764141	49s	2025-09-01T19:25:54Z
+completed	success	fix: Add package-lock.json to enable CI builds	Deploy to Firebase Hosting on merge	main	push	17385424592	1m12s	2025-09-01T19:03:38Z
+completed	failure	chore: Reconfigure GitHub Actions for Firebase Hosting	Deploy to Firebase Hosting on merge	main	push	17385369107	10s	2025-09-01T19:00:14Z

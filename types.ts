@@ -71,6 +71,7 @@ export interface UserSettings {
     count: number;
     lastReset: number; // Timestamp
   };
+  onboardingCompleted?: boolean;
 }
 
 

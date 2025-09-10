@@ -589,7 +589,6 @@ export async function searchRecipeByName(recipeName: string, settings: UserSetti
 
     const body = await resp.json();
     const jsonString = (body.text || '').trim();
-    console.log('searchRecipeByName response:', jsonString);
     const recipes = JSON.parse(jsonString) as ApiRecipe[];
     return recipes;
   } catch (e) {
