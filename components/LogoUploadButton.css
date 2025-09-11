@@ -1,0 +1,26 @@
+.logoContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.logoContainer img {
+  margin-top: -1px;
+  width: 120px;
+  height: auto;
+}
+
+.uploadButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  transition: transform 0.2s ease;
+}
+
+.uploadButton:hover {
+  transform: scale(1.05);
+}
+
+.uploadButton:active {
+  transform: scale(0.95);
+}
