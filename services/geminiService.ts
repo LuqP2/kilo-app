@@ -1,5 +1,68 @@
 import { Recipe, WeeklyPlan, UserSettings, Ingredient, MealType, MEAL_TYPES } from '../types';
 import { auth } from '../firebaseConfig';
+
+// Circuit Breaker implementation
+interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN';
+}
+
+const circuitBreakers = new Map<string, CircuitBreakerState>();
+const CIRCUIT_BREAKER_CONFIG = {
+  failureThreshold: 5, // Open circuit after 5 consecutive failures
+  resetTimeout: 60000, // 1 minute before trying again
+  maxRequestsInHalfOpen: 1 // Only allow 1 request when half-open
+};
+
+const getCircuitBreakerState = (endpoint: string): CircuitBreakerState => {
+  if (!circuitBreakers.has(endpoint)) {
+    circuitBreakers.set(endpoint, {
+      failures: 0,
+      lastFailureTime: 0,
+      state: 'CLOSED'
+    });
+  }
+  return circuitBreakers.get(endpoint)!;
+};
+
+const canExecuteRequest = (endpoint: string): boolean => {
+  const breaker = getCircuitBreakerState(endpoint);
+  const now = Date.now();
+  
+  switch (breaker.state) {
+    case 'OPEN':
+      // Check if enough time has passed to try again
+      if (now - breaker.lastFailureTime >= CIRCUIT_BREAKER_CONFIG.resetTimeout) {
+        breaker.state = 'HALF_OPEN';
+        return true;
+      }
+      return false;
+    case 'HALF_OPEN':
+      return true; // Allow limited requests
+    case 'CLOSED':
+    default:
+      return true;
+  }
+};
+
+const recordSuccess = (endpoint: string): void => {
+  const breaker = getCircuitBreakerState(endpoint);
+  breaker.failures = 0;
+  breaker.state = 'CLOSED';
+};
+
+const recordFailure = (endpoint: string): void => {
+  const breaker = getCircuitBreakerState(endpoint);
+  breaker.failures++;
+  breaker.lastFailureTime = Date.now();
+  
+  if (breaker.failures >= CIRCUIT_BREAKER_CONFIG.failureThreshold) {
+    breaker.state = 'OPEN';
+    console.warn(`Circuit breaker OPENED for ${endpoint} after ${breaker.failures} failures`);
+  }
+};
+
 // Frontend no longer initializes GoogleGenAI directly. Calls are proxied to a secure server endpoint.
 // Use local emulator if in development, otherwise use production
 const isDevelopment = import.meta.env.DEV || window.location.hostname === 'localhost';
@@ -492,6 +555,15 @@ export async function getAnswerForRecipeQuestion(recipeName: string, recipeInstr
 export async function adjustRecipeServings(ingredientsToAdjust: Ingredient[], originalServings: number, newServings: number): Promise<Ingredient[]> {
     if (ingredientsToAdjust.length === 0) return [];
 
+    const endpoint = '/adjustRecipeServings';
+    
+    // Circuit breaker check
+    if (!canExecuteRequest(endpoint)) {
+      const breaker = getCircuitBreakerState(endpoint);
+      const timeUntilReset = Math.ceil((CIRCUIT_BREAKER_CONFIG.resetTimeout - (Date.now() - breaker.lastFailureTime)) / 1000);
+      throw new Error(`Serviço temporariamente indisponível. Tente novamente em ${timeUntilReset} segundos.`);
+    }
+
     const ingredientsString = ingredientsToAdjust.map(ing => `${ing.quantity} ${ing.unit || ''} ${ing.name}`).join(', ');
 
     const prompt = `
@@ -503,21 +575,35 @@ export async function adjustRecipeServings(ingredientsToAdjust: Ingredient[], or
 
     try {
       const token = await getAuthToken();
-      const resp = await fetch(`${FUNCTIONS_BASE}/adjustRecipeServings`, {
+      const resp = await fetch(`${FUNCTIONS_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ ingredientsToAdjust, originalServings, newServings })
       });
+      
       if (!resp.ok) {
-        console.error('adjustRecipeServings failed', await resp.text());
+        const errorText = await resp.text();
+        console.error('adjustRecipeServings failed', errorText);
+        
+        // Handle rate limiting specifically
+        if (resp.status === 429) {
+          const retryAfter = resp.headers.get('retry-after') || '60';
+          throw new Error(`Muitas tentativas. Aguarde ${retryAfter} segundos.`);
+        }
+        
+        recordFailure(endpoint);
         throw new Error('Failed to adjust servings.');
       }
+      
       const body = await resp.json();
       const jsonString = (body.text || '').trim();
       const ingredients = JSON.parse(jsonString) as Ingredient[];
+      
+      recordSuccess(endpoint);
       return ingredients;
     } catch (e) {
       console.error('Failed to fetch/parse adjusted ingredients from function', e);
+      recordFailure(endpoint);
       throw new Error('Failed to adjust servings.');
     }
 }

@@ -10,6 +10,52 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
+// Rate limiting: Map to store request counts per user per endpoint
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute window
+const RATE_LIMITS = {
+  '/adjustRecipeServings': 10, // max 10 requests per minute
+  '/suggestRecipes': 5,
+  '/suggestSingleRecipe': 5,
+  '/default': 30 // default for other endpoints
+};
+
+// Rate limiting middleware
+const rateLimitMiddleware = (req, res, next) => {
+  const userId = req.user?.uid || req.ip; // Use user ID if authenticated, otherwise IP
+  const endpoint = req.path;
+  const limit = RATE_LIMITS[endpoint] || RATE_LIMITS['/default'];
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW;
+  
+  const key = `${userId}:${endpoint}`;
+  
+  // Clean old entries and get current count
+  if (!requestCounts.has(key)) {
+    requestCounts.set(key, []);
+  }
+  
+  const userRequests = requestCounts.get(key);
+  const recentRequests = userRequests.filter(timestamp => timestamp > windowStart);
+  
+  if (recentRequests.length >= limit) {
+    console.warn(`Rate limit exceeded for ${key}: ${recentRequests.length}/${limit} requests`);
+    return res.status(429).json({ 
+      error: 'Muitas requisições. Tente novamente em alguns segundos.',
+      retryAfter: Math.ceil((recentRequests[0] + RATE_LIMIT_WINDOW - now) / 1000)
+    });
+  }
+  
+  // Add current request timestamp
+  recentRequests.push(now);
+  requestCounts.set(key, recentRequests);
+  
+  next();
+};
+
+// Apply rate limiting to all routes
+app.use(rateLimitMiddleware);
+
 // Gemini client is initialized lazily inside each request handler to avoid
 // long-running work or timeouts during cold start/deploys.
 // Do NOT initialize GoogleGenAI at module scope.
@@ -435,8 +481,31 @@ app.post('/analyzeRecipeForProfile', async (req, res) => {
 });
 
 app.post('/adjustRecipeServings', async (req, res) => {
+  const startTime = Date.now();
+  const userId = req.user?.uid || 'anonymous';
+  const userAgent = req.get('User-Agent') || 'unknown';
+  
+  console.log(`[adjustRecipeServings] START - User: ${userId}, IP: ${req.ip}, UserAgent: ${userAgent.substring(0, 100)}`);
+  console.log(`[adjustRecipeServings] Request body:`, JSON.stringify(req.body, null, 2));
+  
   try {
     const { ingredientsToAdjust, originalServings, newServings } = req.body;
+    
+    // Validate input parameters
+    if (!Array.isArray(ingredientsToAdjust)) {
+      console.error(`[adjustRecipeServings] ERROR - Invalid ingredientsToAdjust: ${typeof ingredientsToAdjust}`);
+      return res.status(400).json({ error: 'ingredientsToAdjust deve ser um array' });
+    }
+    
+    if (!originalServings || !newServings || originalServings <= 0 || newServings <= 0) {
+      console.error(`[adjustRecipeServings] ERROR - Invalid servings: original=${originalServings}, new=${newServings}`);
+      return res.status(400).json({ error: 'Porções originais e novas devem ser números positivos' });
+    }
+    
+    if (originalServings === newServings) {
+      console.log(`[adjustRecipeServings] No change needed: ${originalServings} === ${newServings}`);
+      return res.json({ text: JSON.stringify(ingredientsToAdjust) });
+    }
     
     // Convert ingredients to string format for the prompt
     const ingredientsString = ingredientsToAdjust.map(ing => {
@@ -452,19 +521,35 @@ app.post('/adjustRecipeServings', async (req, res) => {
       return `${ing.quantity || ''} ${ing.unit || ''} ${ing.name || ''}`.trim();
     }).join(', ');
     
+    console.log(`[adjustRecipeServings] Processing: ${originalServings} -> ${newServings} portions`);
+    console.log(`[adjustRecipeServings] Ingredients: ${ingredientsString.substring(0, 200)}...`);
+    
     const prompt = `A seguinte lista de ingredientes é para uma receita que serve ${originalServings} pessoas: ${ingredientsString}. Recalcule as quantidades para ${newServings} pessoas. Responda APENAS com um array JSON de strings, onde cada string é um ingrediente completo com sua quantidade ajustada (exemplo: ["200g carne moída", "1/2 cebola média"]).`;
     
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error('API Key for Gemini is not configured.');
+      console.error('[adjustRecipeServings] ERROR - API Key for Gemini is not configured.');
       return res.status(500).json({ error: 'API Key not configured.' });
     }
     const genAI = new GoogleGenAI({ apiKey });
     const modelClient = genAI.models || genAI;
-    const response = await modelClient.generateContent({ model: 'gemini-2.5-flash', contents: { parts: [{ text: prompt }] }, config: { responseMimeType: 'application/json' } });
+    
+    const geminiStartTime = Date.now();
+    const response = await modelClient.generateContent({ 
+      model: 'gemini-2.5-flash', 
+      contents: { parts: [{ text: prompt }] }, 
+      config: { responseMimeType: 'application/json' } 
+    });
+    const geminiEndTime = Date.now();
+    
+    console.log(`[adjustRecipeServings] SUCCESS - Gemini took ${geminiEndTime - geminiStartTime}ms`);
+    console.log(`[adjustRecipeServings] Response length: ${response.text?.length || 0} chars`);
+    console.log(`[adjustRecipeServings] Total time: ${Date.now() - startTime}ms`);
+    
     return res.json({ text: response.text });
   } catch (e) {
-    console.error(e);
+    const errorTime = Date.now() - startTime;
+    console.error(`[adjustRecipeServings] ERROR after ${errorTime}ms:`, e);
     return res.status(500).json({ error: String(e) });
   }
 });

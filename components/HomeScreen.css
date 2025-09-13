@@ -444,3 +444,74 @@
     max-width: 350px;
   }
 }
+
+/* Banner de manutenção */
+.maintenance-banner {
+  background: linear-gradient(135deg, #FFA726 0%, #FF8F65 100%);
+  color: white;
+  padding: 16px 20px;
+  margin: -20px -20px 20px -20px;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
+}
+
+.maintenance-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.maintenance-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.maintenance-text {
+  flex: 1;
+}
+
+.maintenance-text strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.maintenance-text p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+
+@media (min-width: 768px) {
+  .maintenance-banner {
+    margin: -20px -40px 20px -40px;
+  }
+}
+
+/* Estilos para elementos desabilitados durante manutenção */
+.search-input:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.camera-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-recipes-button:disabled {
+  background-color: #ddd;
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -108,6 +108,16 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div className="home-screen">
+      {/* Banner de manutenção */}
+      <div className="maintenance-banner">
+        <div className="maintenance-content">
+          <div className="maintenance-icon">🔧</div>
+          <div className="maintenance-text">
+            <strong>Manutenção em Progresso</strong>
+            <p>Nosso sistema está temporariamente em manutenção para melhorias. Voltaremos em breve!</p>
+          </div>
+        </div>
+      </div>
 
 
       {/* Conteúdo principal centralizado */}
@@ -127,6 +137,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             type="button"
             className={`mode-button ${searchMode === 'ingredients' ? 'active' : ''}`}
             onClick={() => setSearchMode('ingredients')}
+            disabled
           >
             Ingredientes
           </button>
@@ -134,6 +145,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             type="button"
             className={`mode-button ${searchMode === 'recipe' ? 'active' : ''}`}
             onClick={() => setSearchMode('recipe')}
+            disabled
           >
             Nome do Prato
           </button>
@@ -144,22 +156,18 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
           <input
             type="text"
             className="search-input"
-            placeholder={
-              searchMode === 'recipe' 
-                ? "Ex: Fricassê de frango, Lasanha bolonhesa..." 
-                : ingredients.length > 0 
-                  ? "Adicionar mais ingredientes..." 
-                  : "Ex: arroz, frango, batata..."
-            }
+            placeholder="Sistema em manutenção - Voltaremos em breve!"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
+            disabled
           />
           <button 
             type="button" 
             className="camera-button"
             onClick={onCameraClick}
-            title="Fotografar ingredientes"
+            title="Sistema em manutenção"
+            disabled
           >
             <img 
               src={logoUrl}
@@ -193,8 +201,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <button 
               onClick={handleSearchRecipes}
               className="search-recipes-button"
+              disabled
             >
-              🔍 Buscar Receitas ({ingredients.length} {ingredients.length === 1 ? 'ingrediente' : 'ingredientes'})
+              🔧 Sistema em Manutenção
             </button>
           </div>
         )}
@@ -205,8 +214,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({
             <button 
               onClick={handleSearchRecipes}
               className="search-recipes-button"
+              disabled
             >
-              🔍 Buscar Receita: "{inputValue.trim()}"
+              � Sistema em Manutenção
             </button>
           </div>
         )}

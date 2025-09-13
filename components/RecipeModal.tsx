@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Recipe, Ingredient, Technique } from '../types';
 import { adjustRecipeServings, getAnswerForRecipeQuestion, getTechniqueExplanation } from '../services/geminiService';
 import { useAuth } from '../AuthContext';
@@ -49,6 +49,10 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [servingsValue, setServingsValue] = useState<string>(initialRecipe.servings?.toString() ?? '1');
+  
+  // Debouncing refs
+  const servingsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastServingsCallRef = useRef<number>(0);
 
   const [isKitchenMode, setIsKitchenMode] = useState(false);
   const [timers, setTimers] = useState<Timer[]>([]);
@@ -255,7 +259,16 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     return () => clearInterval(interval);
   }, [timers]);
   
-  const handleServingsChange = async (newServingsRaw: number | string) => {
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (servingsTimeoutRef.current) {
+        clearTimeout(servingsTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  const handleServingsChange = useCallback(async (newServingsRaw: number | string) => {
     const newServings = typeof newServingsRaw === 'string' ? parseInt(newServingsRaw, 10) : newServingsRaw;
     const originalServings = initialRecipe.servings;
 
@@ -267,42 +280,70 @@ const RecipeModal: React.FC<RecipeModalProps> = ({ recipe: initialRecipe, onClos
     
     if (newServings === recipe.servings) return; // No change needed
 
-    // If user wants to go back to original, just reset the recipe state to the initial prop
-    if (newServings === initialRecipe.servings) {
-        setRecipe(initialRecipe);
-        return;
+    // Debouncing: Clear previous timeout
+    if (servingsTimeoutRef.current) {
+      clearTimeout(servingsTimeoutRef.current);
+    }
+    
+    // Rate limiting: Prevent too frequent calls (max 1 per 2 seconds)
+    const now = Date.now();
+    const timeSinceLastCall = now - lastServingsCallRef.current;
+    if (timeSinceLastCall < 2000 && lastServingsCallRef.current > 0) {
+      console.log(`Rate limiting: Ignoring servings change (${timeSinceLastCall}ms since last call)`);
+      setServingsValue(recipe.servings?.toString() ?? '1');
+      return;
     }
 
-    setIsAdjusting(true);
-    try {
-        const isMarket = !!(initialRecipe.ingredientsYouHave || initialRecipe.ingredientsToBuy);
-        let adjustedRecipeParts: Partial<Recipe>;
-
-        if (isMarket) {
-            const adjustedToBuy = await adjustRecipeServings(initialRecipe.ingredientsToBuy || [], originalServings, newServings);
-            adjustedRecipeParts = {
-                servings: newServings,
-                ingredientsYouHave: initialRecipe.ingredientsYouHave,
-                ingredientsToBuy: adjustedToBuy
-            };
-        } else {
-            const adjustedNeeded = await adjustRecipeServings(initialRecipe.ingredientsNeeded || [], originalServings, newServings);
-            adjustedRecipeParts = {
-                servings: newServings,
-                ingredientsNeeded: adjustedNeeded
-            };
-        }
-        setRecipe(prev => ({ ...prev, ...adjustedRecipeParts }));
-
-    } catch (error) {
-        console.error("Failed to adjust servings", error);
-        alert("Não foi possível ajustar as porções. Tente novamente.");
-        // Revert recipe state to what it was before the attempt
-        setServingsValue(recipe.servings?.toString() ?? '1');
-    } finally {
-        setIsAdjusting(false);
+    // If already adjusting, ignore new requests
+    if (isAdjusting) {
+      console.log('Already adjusting servings, ignoring new request');
+      setServingsValue(recipe.servings?.toString() ?? '1');
+      return;
     }
-  };
+
+    // Debounce the actual API call
+    servingsTimeoutRef.current = setTimeout(async () => {
+      console.log(`Starting servings adjustment: ${originalServings} -> ${newServings}`);
+      lastServingsCallRef.current = Date.now();
+      
+      // If user wants to go back to original, just reset the recipe state to the initial prop
+      if (newServings === initialRecipe.servings) {
+          setRecipe(initialRecipe);
+          return;
+      }
+
+      setIsAdjusting(true);
+      try {
+          const isMarket = !!(initialRecipe.ingredientsYouHave || initialRecipe.ingredientsToBuy);
+          let adjustedRecipeParts: Partial<Recipe>;
+
+          if (isMarket) {
+              const adjustedToBuy = await adjustRecipeServings(initialRecipe.ingredientsToBuy || [], originalServings, newServings);
+              adjustedRecipeParts = {
+                  servings: newServings,
+                  ingredientsYouHave: initialRecipe.ingredientsYouHave,
+                  ingredientsToBuy: adjustedToBuy
+              };
+          } else {
+              const adjustedNeeded = await adjustRecipeServings(initialRecipe.ingredientsNeeded || [], originalServings, newServings);
+              adjustedRecipeParts = {
+                  servings: newServings,
+                  ingredientsNeeded: adjustedNeeded
+              };
+          }
+          setRecipe(prev => ({ ...prev, ...adjustedRecipeParts }));
+          console.log(`Successfully adjusted servings to ${newServings}`);
+
+      } catch (error) {
+          console.error("Failed to adjust servings", error);
+          alert("Não foi possível ajustar as porções. Tente novamente.");
+          // Revert recipe state to what it was before the attempt
+          setServingsValue(recipe.servings?.toString() ?? '1');
+      } finally {
+          setIsAdjusting(false);
+      }
+    }, 500); // 500ms debounce
+  }, [recipe.servings, initialRecipe, isAdjusting]);
 
   const handleToggleShoppingItem = (itemName: string) => {
     setShoppingListChecked(prev => 
