@@ -1,226 +1,249 @@
-# Kilo 🍳 
+# Kilo
 
 **AI-powered cooking assistant that transforms ingredient photos into personalized recipes**
 
-[🚀 **Live Demo**](https://kilo.app.br) | [📱 **Install as PWA**](https://kilo.app.br) | [⭐ **Star this repo**](https://github.com/LuqP2/kilo-app)
+[Live Demo](https://kilo.app.br) | [Install as PWA](https://kilo.app.br) | [Star this repo](https://github.com/LuqP2/kilo-app)
 
 ---
 
-## 🎯 The Problem
-*"What should I cook today?"* - A question that haunts millions of kitchens daily.
+## Overview
 
-## 💡 The Solution
-Kilo is the world's first **equipment-aware cooking assistant**. Unlike recipe catalogs, Kilo creates a new category: **culinary execution assistant**.
+Kilo is an AI-powered cooking assistant that solves the daily "what should I cook" problem by analyzing ingredient photos and generating personalized, equipment-aware recipes.
 
-### 🔥 What Makes Kilo Different
-- **📸 Photo → Recipe**: Snap ingredients, get instant recipes
-- **🔧 Equipment-Smart**: Only suggests recipes you can actually make
-- **📅 Weekly Planning**: Meal plans that minimize food waste
-- **🛒 Smart Shopping**: Auto-generated lists for missing ingredients
-- **🎨 AI Personalization**: Learns your taste preferences over time
+## Key Features
 
----
-
-## ⚡ Quick Demo
-
-```
-1. 📱 Take photo of your fridge contents
-2. 🤖 AI identifies: tomatoes, pasta, cheese, basil
-3. ⚙️  Filters by your equipment: "Has microwave, no oven"
-4. 🍝 Suggests: "Microwave Caprese Pasta Bowl - 12 minutes"
-5. ✅ Perfect recipe for YOUR kitchen, RIGHT NOW
-```
+**Photo-to-Recipe Generation**: Upload photos of ingredients and receive instant recipe suggestions
+**Equipment-Aware Filtering**: Only suggests recipes based on available kitchen equipment
+**Weekly Meal Planning**: Generate meal plans that minimize food waste
+**Smart Shopping Lists**: Auto-generated shopping lists for missing ingredients
+**AI Personalization**: Learns user preferences and dietary restrictions over time
 
 ---
 
-## 🛠️ Tech Stack
+## Problem Statement
 
-**Frontend**: React 19 + TypeScript + Vite  
-**Backend**: Firebase Cloud Functions (Node.js/Express)  
-**Database**: Firestore + Firebase Auth  
-**AI**: Google Gemini 2.5 Flash  
-**Hosting**: Firebase Hosting with PWA support  
+The daily decision of "what to cook" affects millions of households globally. Traditional recipe apps provide inspiration but fail to address practical limitations like available ingredients and kitchen equipment.
 
-### Key Architecture Decisions
-- **🔐 Security-First**: AI API keys never exposed to frontend
-- **📱 Mobile-Optimized**: Built-in image compression for low-memory devices  
-- **⚡ Performance**: Intelligent caching reduces API costs by 60%
-- **🛡️ Safety**: Multi-layer validation prevents dangerous ingredient suggestions
+## Solution
 
----
+Kilo creates a new category of culinary assistant focused on execution rather than inspiration. The application analyzes available ingredients through computer vision and generates executable recipes based on actual kitchen capabilities.
 
-## 🚀 Development Timeline
+### Workflow Example
 
-**Day 1-2**: Core AI integration + photo processing  
-**Day 3-4**: Recipe generation + personalization engine  
-**Day 5-6**: Weekly planning + shopping list automation  
-**Day 7-8**: PWA deployment + user authentication  
-
-**Total**: **8 days** from concept to production
+1. User uploads photo of available ingredients
+2. AI identifies ingredients: tomatoes, pasta, cheese, basil
+3. System filters by user's equipment profile: "microwave available, no oven"
+4. Generates recipe: "Microwave Caprese Pasta Bowl - 12 minutes"
+5. Provides complete cooking instructions optimized for available equipment
 
 ---
 
-## 🏗️ Architecture Highlights
+## Technical Architecture
+
+## Technical Architecture
+
+**Frontend**: React 19 with TypeScript and Vite build system
+**Backend**: Firebase Cloud Functions (Node.js/Express)
+**Database**: Firestore with Firebase Authentication
+**AI Integration**: Google Gemini 2.5 Flash API
+**Hosting**: Firebase Hosting with Progressive Web App support
+
+### Architecture Decisions
+
+**Security-First Design**: AI API keys are never exposed to the frontend environment
+**Mobile Optimization**: Built-in image compression for low-memory devices
+**Performance Optimization**: Intelligent caching reduces API costs by 60%
+**Safety Implementation**: Multi-layer validation prevents dangerous ingredient suggestions
+
+---
+
+## Development Timeline
+
+**Phase 1 (Days 1-2)**: Core AI integration and photo processing
+**Phase 2 (Days 3-4)**: Recipe generation and personalization engine
+**Phase 3 (Days 5-6)**: Weekly planning and shopping list automation
+**Phase 4 (Days 7-8)**: PWA deployment and user authentication
+
+**Total Development Time**: 8 days from concept to production deployment
+
+---
+
+## Implementation Details
+
+## Implementation Details
 
 ### Secure AI Integration
 ```typescript
-// ❌ NEVER in frontend
+// Incorrect: API keys exposed in frontend
 const genAI = new GoogleGenAI(API_KEY); 
 
-// ✅ Always in backend (Cloud Functions)
+// Correct: API keys secured in backend Cloud Functions
 export const identifyIngredients = functions.https.onRequest(async (req, res) => {
   const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY);
-  // ...
+  // Processing logic here
 });
 ```
 
-### Smart Image Processing
-- **Auto-compression** for mobile devices
-- **Memory-aware** processing (detects low-memory devices)
-- **Emergency fallback** compression for extreme cases
+### Image Processing Pipeline
+- **Automatic compression** for mobile device compatibility
+- **Memory-aware processing** with device detection
+- **Emergency fallback compression** for extreme low-memory scenarios
 
-### Intelligent Prompting System
-- **Equipment-aware** recipe filtering
-- **Dietary restrictions** enforcement
-- **Flavor profile** learning from saved recipes
-- **Safety validation** prevents dangerous suggestions
-
----
-
-## 🎨 Features
-
-### 🤖 AI-Powered Core
-- [x] **Ingredient Recognition** from photos
-- [x] **Image Classification** (ingredients vs prepared dishes)
-- [x] **Recipe Generation** with personalization
-- [x] **Leftover Transformation** into new meals
-
-### 👨‍🍳 Smart Cooking Assistant
-- [x] **Equipment Integration** (only suggests makeable recipes)
-- [x] **Portion Adjustment** with practical measurements
-- [x] **Technique Explanations** for cooking terms
-- [x] **Q&A System** for recipe questions
-
-### 📋 Meal Planning
-- [x] **Weekly Meal Plans** (3, 5, or 7 days)
-- [x] **Smart Shopping Lists** (auto-generated)
-- [x] **Food Waste Minimization** through intelligent planning
-- [x] **Meal Type Filtering** (breakfast, lunch, dinner, etc.)
-
-### 🎯 Personalization
-- [x] **Dietary Preferences** (vegetarian, vegan, gluten-free)
-- [x] **Allergy Management** with strict enforcement
-- [x] **Flavor Profile Learning** from user behavior
-- [x] **Effort Filters** (quick meals, one-pot, no-oven)
-
-### 📱 Modern UX
-- [x] **Progressive Web App** with offline support
-- [x] **Mobile-First** design and camera integration
-- [x] **Firebase Authentication** with Google Sign-In
-- [x] **Real-time Sync** across devices
+### AI Prompting System
+- **Equipment-aware recipe filtering** based on user profile
+- **Dietary restriction enforcement** with safety validation
+- **Flavor profile learning** from user interaction patterns
+- **Safety validation layer** prevents dangerous ingredient combinations
 
 ---
 
-## 📊 Current Status
+## Feature Set
 
-**🔥 Active Development**  
-**👥 15+ Beta Testers** across 4 countries  
-**⭐ Real User Feedback**: *"Holy sh*t, how did I never think of that?"* - Camilo, Beta User  
-**🚀 Production Ready** at [kilo.app.br](https://kilo.app.br)
+### Core AI Functionality
+- Ingredient recognition from photo uploads
+- Image classification (raw ingredients vs prepared dishes)
+- Personalized recipe generation
+- Leftover transformation into new meal suggestions
+
+### Cooking Assistant Features
+- Equipment integration (filters recipes by available tools)
+- Portion adjustment with practical measurement conversions
+- Cooking technique explanations for unfamiliar terms
+- Interactive Q&A system for recipe clarification
+
+### Meal Planning System
+- Weekly meal plans (3, 5, or 7-day options)
+- Automated shopping list generation
+- Food waste minimization through intelligent planning
+- Meal type filtering (breakfast, lunch, dinner, snacks)
+
+### Personalization Engine
+- Dietary preference management (vegetarian, vegan, gluten-free)
+- Allergy management with strict enforcement protocols
+- Flavor profile learning from user behavior analysis
+- Effort-based filtering (quick meals, one-pot dishes, no-oven recipes)
+
+### User Experience
+- Progressive Web App with offline functionality
+- Mobile-first design with camera integration
+- Firebase Authentication with Google Sign-In
+- Real-time synchronization across devices
 
 ---
 
-## 🔧 Local Development
+## Current Status
 
+## Current Status
+
+**Production Status**: Active development with live deployment
+**User Base**: 15+ beta testers across 4 countries
+**User Feedback**: Positive reception with feature requests for additional functionality
+**Availability**: Production-ready application at [kilo.app.br](https://kilo.app.br)
+
+---
+
+## Development Setup
+
+## Development Setup
+
+### Prerequisites
+- Node.js (LTS version recommended)
+- Firebase CLI
+- Google Gemini API key
+
+### Installation
 ```bash
-# Frontend
+# Frontend setup
 npm install
 npm run dev
 
-# Backend Functions
+# Backend Functions setup
 cd functions
 npm install
 firebase emulators:start --only functions
 
-# Environment Setup
+# Environment configuration
 cp .env.example .env.local
-# Add your GEMINI_API_KEY
+# Configure your GEMINI_API_KEY
 ```
 
 ### Environment Variables
 ```bash
 VITE_FIREBASE_API_KEY=your_firebase_key
 VITE_FUNCTIONS_BASE=your_functions_url
-GEMINI_API_KEY=your_gemini_key  # Backend only!
+GEMINI_API_KEY=your_gemini_key  # Backend only
 ```
 
 ---
 
-## 🚀 Deployment
+## Deployment
 
-**Automated CI/CD** with GitHub Actions:
-- ✅ Builds frontend with Vite
-- ✅ Deploys to Firebase Hosting
-- ✅ Updates Cloud Functions
-- ✅ Manages environment secrets
+**CI/CD Pipeline**: Automated deployment with GitHub Actions
+- Frontend build with Vite optimization
+- Firebase Hosting deployment
+- Cloud Functions updates
+- Environment secret management
 
+### Manual Deployment
 ```bash
-# Manual deployment
 npm run build
 firebase deploy
 ```
 
 ---
 
-## 🧠 What I Learned
+## Technical Insights
 
-### Technical Insights
-- **AI API Security**: Never expose keys to frontend
-- **Mobile Performance**: Image compression is critical
-- **Prompt Engineering**: 60+ iterations to perfect recipe generation
-- **Firebase Architecture**: Serverless scales beautifully
+## Technical Insights
 
-### Product Insights  
-- **User Behavior**: People want execution, not inspiration
-- **Real Problems**: Equipment limitations > ingredient availability
-- **MVP Focus**: 8 days possible by ruthless feature prioritization
+### Development Learnings
+**AI API Security**: Critical importance of keeping API keys secure in backend services
+**Mobile Performance**: Image compression essential for mobile device compatibility
+**Prompt Engineering**: Extensive iteration required for optimal AI recipe generation
+**Firebase Architecture**: Serverless architecture provides excellent scalability
 
----
-
-## 🎯 Why This Matters
-
-**For Recruiters**: Demonstrates full-stack capability, AI integration, and real-world problem solving in record time.
-
-**For Users**: Solves the daily "what to cook" decision fatigue with personalized, executable solutions.
-
-**For Developers**: Showcases modern stack integration, security best practices, and performance optimization.
+### Product Development Insights
+**User Behavior**: Users prioritize execution capability over recipe inspiration
+**Technical Constraints**: Equipment limitations more significant than ingredient availability
+**MVP Strategy**: Rapid development possible through focused feature prioritization
 
 ---
 
-## 📈 Next Steps
+## Project Significance
 
-- [ ] **User Analytics** integration
-- [ ] **Recipe Rating** system  
-- [ ] **Social Sharing** features
-- [ ] **Voice Commands** for hands-free cooking
-- [ ] **Nutritional Analysis** integration
+**Technical Demonstration**: Showcases full-stack development capabilities, AI integration, and performance optimization
+**Problem Solving**: Addresses real-world daily decision fatigue with practical solutions
+**Modern Stack Integration**: Demonstrates contemporary development practices and security implementations
 
 ---
 
-## 🤝 Contact
+## Roadmap
 
-**Developer**: Looking for freelance opportunities  
-**Specialties**: React + Firebase + AI Integration  
-**Availability**: Immediate  
+## Roadmap
 
-**Live Example**: This entire application at [kilo.app.br](https://kilo.app.br)
-
----
-
-## ⚖️ License
-
-MIT License - Feel free to learn from the code!
+### Planned Features
+- User analytics integration for behavior analysis
+- Recipe rating system for quality improvement
+- Social sharing capabilities for recipe distribution
+- Voice command integration for hands-free cooking
+- Nutritional analysis integration for health tracking
 
 ---
 
-**💡 Built with modern tools, AI assistance, and real-world problem solving in mind.**
+## Contact Information
+
+**Developer**: Available for freelance opportunities
+**Specializations**: React, Firebase, AI Integration
+**Availability**: Immediate
+
+**Live Application**: [kilo.app.br](https://kilo.app.br)
+
+---
+
+## License
+
+MIT License - Open source for educational and development purposes
+
+---
+
+**Built with modern development practices, AI integration, and practical problem-solving methodologies.**
